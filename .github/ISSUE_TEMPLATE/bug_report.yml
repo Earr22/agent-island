@@ -1,0 +1,41 @@
+name: Bug report
+description: Report a reproducible problem without sharing private local data.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Remove private prompts, clipboard or notification contents, usernames, local paths, tokens, and personal information before submitting."
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: v0.10.3
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows version
+      placeholder: Windows 11 24H2
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe the problem and what you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      placeholder: "1. Start Agent Island\n2. …"
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Safe diagnostics
+      description: Paste only sanitized output. Do not attach private session or browser data.

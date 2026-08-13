@@ -1,0 +1,76 @@
+{
+  "name": "agent-island",
+  "version": "0.10.3",
+  "description": "A Windows Dynamic Island for AI agent status, decisions, and notifications.",
+  "main": "src/main.js",
+  "author": "Agent Island contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Earr22/agent-island.git"
+  },
+  "homepage": "https://github.com/Earr22/agent-island#readme",
+  "bugs": {
+    "url": "https://github.com/Earr22/agent-island/issues"
+  },
+  "type": "commonjs",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "test": "node --test",
+    "check": "node --check src/main.js && node --check src/server.js && node --check src/event-normalizer.js && node --check src/agent-monitor.js && node --check src/task-activity.js && node --check src/codex-session-monitor.js && node --check src/clipboard-history.js && node --check src/todo-store.js && node --check src/windows-notification-bridge.js && node --check src/placement.js && node --check src/preload.js && node --check src/ui/app.js",
+    "smoke:ui": "electron . --smoke-capture=artifacts/ui-smoke.png",
+    "icon:render": "electron scripts/render-icon.js",
+    "build": "electron-builder --win nsis portable",
+    "build:portable": "electron-builder --win portable",
+    "build:dir": "electron-builder --dir"
+  },
+  "devDependencies": {
+    "electron": "43.1.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.agentisland.desktop",
+    "productName": "Agent Island",
+    "asar": true,
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "scripts/windows-notification-listener.ps1",
+        "to": "windows-notification-listener.ps1"
+      },
+      {
+        "from": "scripts/focus-app-window.ps1",
+        "to": "focus-app-window.ps1"
+      },
+      {
+        "from": "build/icon.ico",
+        "to": "tray-icon.ico"
+      }
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "artifactName": "Agent-Island-Setup-${version}-${arch}.${ext}",
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Agent Island"
+    },
+    "portable": {
+      "artifactName": "Agent-Island-Portable-${version}-${arch}.${ext}"
+    }
+  }
+}

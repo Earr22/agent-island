@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:">
+  <title>Agent Island</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body data-placement="top">
+  <main id="island" class="island is-idle" data-type="idle" aria-live="polite">
+    <button id="dragHandle" class="drag-handle" type="button" title="Move Agent Island" aria-label="Move Agent Island">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+
+    <section id="idleView" class="idle-view">
+      <div class="idle-brand">
+        <span class="pixel-companion" data-pixel-agent data-state="resting" role="img" aria-label="Agent is resting">
+          <span class="pixel-ground"></span>
+          <span class="pixel-creature">
+            <i class="pixel-blob"></i><i class="pixel-face"></i>
+            <i class="pixel-paw pixel-paw-left"></i><i class="pixel-paw pixel-paw-right"></i>
+            <i class="pixel-tail"></i>
+          </span>
+          <i class="pixel-trail"></i><i class="pixel-impact"></i><i class="pixel-sleep">z</i>
+        </span>
+        <span id="brandName" class="brand-name">Agent Island</span>
+      </div>
+      <div id="idleAgents" class="idle-agents" aria-label="Agent status"></div>
+      <span id="idleTodoTimer" class="idle-todo-timer" hidden>00:00</span>
+      <time id="clock" class="clock">--:--</time>
+    </section>
+
+    <section id="eventView" class="event-view" hidden>
+      <header class="event-header">
+        <div id="sourceGlyph" class="source-glyph pixel-host">
+          <span class="pixel-companion" data-pixel-agent data-state="resting" role="img" aria-label="Agent is resting">
+            <span class="pixel-ground"></span>
+            <span class="pixel-creature">
+              <i class="pixel-blob"></i><i class="pixel-face"></i>
+              <i class="pixel-paw pixel-paw-left"></i><i class="pixel-paw pixel-paw-right"></i>
+              <i class="pixel-tail"></i>
+            </span>
+            <i class="pixel-trail"></i><i class="pixel-impact"></i><i class="pixel-sleep">z</i>
+          </span>
+        </div>
+        <div class="event-copy">
+          <div class="event-meta">
+            <span id="sourceLabel">Agent</span>
+            <span class="meta-dot">·</span>
+            <span id="statusLabel">Notification</span>
+          </div>
+          <h1 id="eventTitle">Status update</h1>
+          <p id="eventMessage"></p>
+        </div>
+        <span id="queueCount" class="queue-count" hidden></span>
+        <div id="statusIcon" class="status-icon" aria-hidden="true"></div>
+        <button id="dismissButton" class="icon-button dismiss-button" title="Collapse" aria-label="Collapse">
+          <svg viewBox="0 0 20 20"><path d="M6 6l8 8M14 6l-8 8"/></svg>
+        </button>
+      </header>
+
+      <div id="progressWrap" class="progress-wrap" hidden>
+        <div class="progress-track"><div id="progressBar" class="progress-bar"></div></div>
+        <span id="progressText">0%</span>
+      </div>
+
+      <p id="eventDetail" class="event-detail" hidden></p>
+      <div id="actions" class="actions" hidden></div>
+      <footer id="eventFooter" class="event-footer">
+        <span class="live-dot"></span>
+        <span id="footerText">Local connection</span>
+      </footer>
+    </section>
+
+    <section id="workView" class="work-view" hidden>
+      <header class="work-header">
+        <button id="workBackButton" class="work-back-button" type="button" title="Back to preview" aria-label="Back to preview">
+          <svg viewBox="0 0 20 20"><path d="M12.5 5L7.5 10l5 5"/></svg>
+        </button>
+        <nav id="workspaceTabs" class="workspace-tabs" role="tablist" aria-label="Agent Island pages">
+          <span class="workspace-tab-indicator" aria-hidden="true"></span>
+          <button id="workTab" class="workspace-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="workPage">Work</button>
+          <button id="todoTab" class="workspace-tab" type="button" role="tab" aria-selected="false" aria-controls="todoPage">Todos</button>
+          <button id="clipboardTab" class="workspace-tab" type="button" role="tab" aria-selected="false" aria-controls="clipboardPage">Clipboard</button>
+        </nav>
+        <button id="addTodoButton" class="workspace-action-button" type="button" title="New todo" aria-label="New todo" hidden>
+          <svg viewBox="0 0 20 20"><path d="M10 4v12M4 10h12"/></svg>
+        </button>
+        <button id="notionTodoButton" class="workspace-action-button notion-button" type="button" title="Send to Notion" aria-label="Send to Notion" hidden>N</button>
+        <button id="clearClipboardButton" class="clear-clipboard-button" type="button" title="Clear clipboard history" aria-label="Clear clipboard history" hidden>
+          <svg viewBox="0 0 20 20"><path d="M5.5 6.5h9M8 6.5V4.8h4v1.7M7 8.5l.5 6.7h5l.5-6.7"/></svg>
+        </button>
+        <span id="workCount" class="work-count">0</span>
+      </header>
+      <div class="workspace-viewport">
+        <div id="workspaceTrack" class="workspace-track">
+          <section id="workPage" class="workspace-page" role="tabpanel" aria-labelledby="workTab">
+            <div id="workList" class="work-list" role="list"></div>
+            <div id="workEmpty" class="work-empty" hidden>No active tasks to open</div>
+          </section>
+          <section id="todoPage" class="workspace-page todo-page" role="tabpanel" aria-labelledby="todoTab">
+            <form id="todoComposer" class="todo-composer" hidden>
+              <input id="todoInput" type="text" maxlength="160" autocomplete="off" placeholder="Add a todo…" aria-label="Todo text">
+              <button id="submitTodoButton" type="submit">Add</button>
+            </form>
+            <div id="todoList" class="todo-list" role="list"></div>
+            <div id="todoEmpty" class="work-empty" hidden>Use + to create your first todo</div>
+            <div id="todoToast" class="todo-toast" hidden></div>
+          </section>
+          <section id="clipboardPage" class="workspace-page clipboard-page" role="tabpanel" aria-labelledby="clipboardTab">
+            <div id="clipboardList" class="clipboard-list" role="list"></div>
+            <div id="clipboardEmpty" class="work-empty" hidden>Copied text and images appear here</div>
+          </section>
+        </div>
+      </div>
+      <footer class="work-footer"><span id="workspaceHint">Scroll down for clipboard history</span></footer>
+    </section>
+
+    <aside id="snapOffer" class="snap-offer" hidden aria-live="assertive">
+      <span id="snapOfferText">Snap to the screen edge?</span>
+      <div>
+        <button id="acceptSnapButton" type="button">Snap</button>
+        <button id="declineSnapButton" type="button">Keep here</button>
+      </div>
+    </aside>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/Earr22/agent-island/discussions
+    about: Ask questions, share integrations, or discuss ideas.
+  - name: Private security report
+    url: https://github.com/Earr22/agent-island/security/advisories/new
+    about: Report security and privacy vulnerabilities privately.

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="background" x1="120" y1="80" x2="900" y2="944" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#171b28"/>
+      <stop offset="1" stop-color="#05070c"/>
+    </linearGradient>
+    <linearGradient id="island" x1="250" y1="310" x2="810" y2="720" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#83a8ff"/>
+      <stop offset="0.5" stop-color="#a28dff"/>
+      <stop offset="1" stop-color="#79e5c5"/>
+    </linearGradient>
+    <filter id="glow" x="-35%" y="-50%" width="170%" height="200%">
+      <feGaussianBlur stdDeviation="34"/>
+    </filter>
+  </defs>
+  <rect x="36" y="36" width="952" height="952" rx="260" fill="url(#background)"/>
+  <rect x="210" y="326" width="604" height="372" rx="186" fill="#82a7ff" opacity="0.3" filter="url(#glow)"/>
+  <rect x="194" y="310" width="636" height="404" rx="202" fill="url(#island)"/>
+  <rect x="254" y="370" width="516" height="284" rx="142" fill="#090c13"/>
+  <circle cx="354" cy="512" r="56" fill="#8faaff"/>
+  <circle cx="354" cy="512" r="22" fill="#0a0d14"/>
+  <circle cx="664" cy="512" r="58" fill="#83e7ca"/>
+  <path d="M637 513l20 20 38-44" fill="none" stroke="#091018" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

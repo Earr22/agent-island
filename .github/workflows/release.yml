@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  portable:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm test
+      - run: npm run build:portable
+      - name: Generate SHA-256
+        shell: pwsh
+        run: |
+          $artifact = Get-ChildItem -LiteralPath dist -Filter 'Agent-Island-Portable-*.exe' | Select-Object -First 1
+          if (-not $artifact) { throw 'Portable artifact was not produced.' }
+          $hash = (Get-FileHash -LiteralPath $artifact.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $($artifact.Name)" | Set-Content -LiteralPath "$($artifact.FullName).sha256" -Encoding ascii
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = $env:GITHUB_REF_NAME
+          $artifact = Get-ChildItem -LiteralPath dist -Filter 'Agent-Island-Portable-*.exe' | Select-Object -First 1
+          $notes = ".github/release-notes/$tag.md"
+          $assets = @($artifact.FullName, "$($artifact.FullName).sha256")
+          if (Test-Path -LiteralPath $notes) {
+            gh release create $tag @assets --title "Agent Island $tag" --notes-file $notes --verify-tag
+          } else {
+            gh release create $tag @assets --title "Agent Island $tag" --generate-notes --verify-tag
+          }
