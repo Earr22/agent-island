@@ -47,7 +47,7 @@ function normalizeActions(actions) {
     }
     return {
       id: cleanString(action?.id ?? action?.value, `choice-${index + 1}`, 64),
-      label: cleanString(action?.label ?? action?.title ?? action?.id, `Option ${index + 1}`, 80),
+      label: cleanString(action?.label ?? action?.title ?? action?.id, `选项 ${index + 1}`, 80),
       style: ['primary', 'secondary', 'danger'].includes(action?.style) ? action.style : (index === 0 ? 'primary' : 'secondary'),
       hint: cleanString(action?.hint, '', 160)
     };
@@ -70,7 +70,7 @@ function normalizeEvent(payload = {}, defaults = {}) {
     sourceColor: cleanString(payload.sourceColor, source.color, 32),
     sourceGlyph: cleanString(payload.sourceGlyph, source.glyph, 4),
     type,
-    title: cleanString(payload.title, defaults.title || `${source.label} notification`, 140),
+    title: cleanString(payload.title, defaults.title || `${source.label} 通知`, 140),
     message: cleanString(payload.message ?? payload.body, defaults.message || '', 1200),
     detail: cleanString(payload.detail, defaults.detail || '', 2400),
     taskId: cleanString(payload.taskId ?? payload.task_id, defaults.taskId || '', 160),
@@ -98,19 +98,19 @@ function fromClaudeHook(payload = {}) {
     return normalizeEvent({
       ...base,
       type: 'decision',
-      title: `${toolName || 'Tool'} needs your approval`,
-      message: summarizeToolInput(payload.tool_input) || 'Claude is waiting for you to decide whether to continue.',
+      title: `${toolName || '工具'} 需要你的授权`,
+      message: summarizeToolInput(payload.tool_input) || 'Claude 正在等待你决定是否继续。',
       detail: cleanString(payload.cwd, '', 320),
       actions: [
-        { id: 'allow', label: 'Allow', style: 'primary' },
-        { id: 'deny', label: 'Deny', style: 'danger' }
+        { id: 'allow', label: '允许', style: 'primary' },
+        { id: 'deny', label: '拒绝', style: 'danger' }
       ],
       systemNotify: true
     });
   }
 
   if (eventName === 'SessionStart') {
-    return normalizeEvent({ ...base, type: 'success', title: 'Claude connected', message: 'No active task.', silent: true, systemNotify: false, context: { ...base.context, presenceOnly: true } });
+    return normalizeEvent({ ...base, type: 'success', title: 'Claude 已连接', message: '当前没有活动任务。', silent: true, systemNotify: false, context: { ...base.context, presenceOnly: true } });
   }
 
   if (eventName === 'Notification') {
@@ -121,22 +121,22 @@ function fromClaudeHook(payload = {}) {
     return normalizeEvent({
       ...base,
       type,
-      title: payload.title || (notificationType === 'agent_needs_input' ? 'Claude is waiting for input' : 'Claude notification'),
+      title: payload.title || (notificationType === 'agent_needs_input' ? 'Claude 等待输入' : 'Claude 通知'),
       message: payload.message || notificationType.replaceAll('_', ' '),
       systemNotify: ['permission_prompt', 'agent_needs_input', 'agent_completed'].includes(notificationType)
     });
   }
 
   if (eventName === 'Stop' || eventName === 'SubagentStop' || eventName === 'TaskCompleted') {
-    return normalizeEvent({ ...base, type: 'success', title: eventName === 'SubagentStop' ? 'Claude subtask completed' : 'Claude completed', message: payload.last_assistant_message || payload.task_subject || 'This task has finished.' });
+    return normalizeEvent({ ...base, type: 'success', title: eventName === 'SubagentStop' ? 'Claude 子任务已完成' : 'Claude 已完成', message: payload.last_assistant_message || payload.task_subject || '本轮任务已经结束。' });
   }
 
   if (eventName === 'PostToolUseFailure' || eventName === 'StopFailure') {
-    return normalizeEvent({ ...base, type: 'error', title: 'Claude ran into a problem', message: payload.error || 'The task failed.', detail: summarizeToolInput(payload.tool_input) });
+    return normalizeEvent({ ...base, type: 'error', title: 'Claude 遇到问题', message: payload.error || '任务执行失败。', detail: summarizeToolInput(payload.tool_input) });
   }
 
   if (eventName === 'SubagentStart' || eventName === 'TaskCreated' || eventName === 'UserPromptSubmit') {
-    return normalizeEvent({ ...base, type: 'working', title: eventName === 'SubagentStart' ? `${payload.agent_type || 'Subagent'} started` : 'Claude is working', message: payload.prompt || payload.task_subject || cleanString(payload.cwd, 'Processing task…', 320), systemNotify: false });
+    return normalizeEvent({ ...base, type: 'working', title: eventName === 'SubagentStart' ? `${payload.agent_type || '子 Agent'} 开始工作` : 'Claude 正在工作', message: payload.prompt || payload.task_subject || cleanString(payload.cwd, '正在处理任务…', 320), systemNotify: false });
   }
 
   return normalizeEvent({ ...base, type: 'notification', title: `Claude · ${eventName}`, message: summarizeToolInput(payload.tool_input) || payload.message || '' });
@@ -151,19 +151,19 @@ function fromCodexPayload(payload = {}) {
   const isFailure = eventName === 'PostToolUseFailure' || eventName === 'StopFailure';
 
   let title = `Codex · ${eventName}`;
-  if (isPresence) title = 'Codex connected';
-  else if (isPermission) title = 'Codex is waiting for approval';
-  else if (isComplete) title = eventName === 'SubagentStop' ? 'Codex subtask completed' : 'Codex completed';
-  else if (isStart) title = eventName === 'SubagentStart' ? 'Codex subagent is working' : 'Codex is working';
-  else if (isFailure) title = 'Codex ran into a problem';
+  if (isPresence) title = 'Codex 已连接';
+  else if (isPermission) title = 'Codex 等待授权';
+  else if (isComplete) title = eventName === 'SubagentStop' ? 'Codex 子任务已完成' : 'Codex 已完成';
+  else if (isStart) title = eventName === 'SubagentStart' ? 'Codex 子 Agent 正在工作' : 'Codex 正在工作';
+  else if (isFailure) title = 'Codex 遇到问题';
 
   return normalizeEvent({
     source: 'codex',
     taskId: payload.session_id || payload['thread-id'] || payload.thread_id,
     type: isPermission ? 'warning' : (isPresence || isComplete ? 'success' : (isStart ? 'working' : (isFailure ? 'error' : 'notification'))),
     title,
-    message: payload['last-assistant-message'] || payload.last_assistant_message || payload.prompt || payload.error || summarizeToolInput(payload.tool_input) || cleanString(payload.cwd, 'Status updated', 320),
-    detail: isPermission ? 'Return to Codex to approve or deny this request.' : '',
+    message: payload['last-assistant-message'] || payload.last_assistant_message || payload.prompt || payload.error || summarizeToolInput(payload.tool_input) || cleanString(payload.cwd, '状态已更新', 320),
+    detail: isPermission ? '请回到 Codex 完成这次授权。' : '',
     silent: isPresence,
     systemNotify: !isPresence && (isPermission || isComplete),
     context: { hookEventName: eventName, cwd: payload.cwd, raw: payload, presenceOnly: isPresence }

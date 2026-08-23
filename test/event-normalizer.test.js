@@ -30,7 +30,7 @@ test('maps Claude prompt submission to a working state', () => {
     prompt: '继续当前任务'
   });
   assert.equal(event.type, 'working');
-  assert.equal(event.title, 'Claude is working');
+  assert.equal(event.title, 'Claude 正在工作');
   assert.equal(event.message, '继续当前任务');
 });
 
@@ -60,7 +60,7 @@ test('maps Codex prompt submission to a working state', () => {
     prompt: '修复通知联动'
   });
   assert.equal(event.type, 'working');
-  assert.equal(event.title, 'Codex is working');
+  assert.equal(event.title, 'Codex 正在工作');
   assert.equal(event.taskId, 'thread-live');
 });
 

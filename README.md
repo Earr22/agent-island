@@ -2,7 +2,7 @@
 
 **A Windows command center for Codex and other AI coding agents.**
 
-[中文说明](README.zh-CN.md) · [Download v0.10.3](https://github.com/Earr22/agent-island/releases/latest) · [Report a bug](https://github.com/Earr22/agent-island/issues/new/choose) · [Join the discussion](https://github.com/Earr22/agent-island/discussions)
+[中文说明](README.zh-CN.md) · [Download v0.11.1](https://github.com/Earr22/agent-island/releases/latest) · [Report a bug](https://github.com/Earr22/agent-island/issues/new/choose) · [Join the discussion](https://github.com/Earr22/agent-island/discussions)
 
 ![Agent Island showing the built-in todo workspace](docs/images/hero.png)
 
@@ -13,6 +13,8 @@ This is the first formal public release. Agent Island is an independent communit
 ## Why Agent Island?
 
 - **See what is actually happening.** Codex Desktop lifecycle events drive working and idle states instead of treating a running process as active work.
+- **Watch real quota usage.** Hover and workspace views show Codex account quota, remaining percentage, and reset time; unsupported agents are marked unavailable instead of showing estimated data.
+- **Open the workspace without a blocking fetch.** A fixed-size shell appears first, only the active page renders, and the three page data sets are prefetched while idle.
 - **Return to the right window.** The workspace lists connected agents and recent events, then focuses the matching application.
 - **Handle decisions quickly.** Claude Code permission hooks can wait for an Allow or Deny response in the island.
 - **Keep small tasks nearby.** Built-in todos include completion state and a single-task timer.
@@ -32,9 +34,9 @@ This is the first formal public release. Agent Island is an independent communit
 
 ## Download
 
-Download `Agent-Island-Portable-0.10.3-x64.exe` and its `.sha256` file from the [latest release](https://github.com/Earr22/agent-island/releases/latest).
+Download `Agent-Island-Portable-0.11.1-x64.exe` and its `.sha256` file from the [latest release](https://github.com/Earr22/agent-island/releases/latest).
 
-The first public build is **not code-signed**, so Windows SmartScreen may show an “Unknown publisher” warning. Verify the SHA-256 file before running it. You can also build from source using the instructions below.
+Release builds are currently **not code-signed**, so Windows SmartScreen may show an “Unknown publisher” warning. Verify the SHA-256 file before running it. You can also build from source using the instructions below.
 
 Requirements: Windows 10 or 11, x64.
 
@@ -46,7 +48,7 @@ Requirements: Windows 10 or 11, x64.
 | Windows notification capture | Off | When enabled, reads visible toast text locally |
 | Remove captured notifications | Off | Must be enabled separately |
 | Todos | On demand | Stored at `%APPDATA%\agent-island\todos.json` |
-| Codex session monitoring | On when Codex is present | Reads lifecycle events and prompt text locally for visible status; never reads reasoning content |
+| Codex session monitoring | On when Codex is present | Reads lifecycle events, prompt text, quota/rate-limit fields, plan type, and context-window usage locally; never reads reasoning content |
 | Local event API | On | Binds to `127.0.0.1:17321`; browser cross-origin access is disabled |
 | Telemetry / analytics | None | No usage analytics, tracking SDK, or cloud account |
 
@@ -105,7 +107,7 @@ Supported event types are `working`, `progress`, `success`, `error`, `warning`, 
 
 ### Codex
 
-Agent Island incrementally reads local Codex Desktop session lifecycle records. `task_started` starts the work state and `task_complete` returns it to idle. Prompt text is used only as the visible task label; reasoning content is not read.
+Agent Island incrementally reads local Codex Desktop session records. `task_started` starts the work state and `task_complete` returns it to idle. Prompt text is used only as the visible task label. `token_count` records provide quota, reset time, plan type, and context-window usage. Reasoning content is not read.
 
 For lifecycle hooks, copy [`integrations/codex.hooks.example.json`](integrations/codex.hooks.example.json) to `~/.codex/hooks.json`, replace `PROJECT_PATH`, and trust it from Codex. Codex approval requests currently direct you back to Codex; Agent Island does not claim an approval it cannot send back.
 

@@ -236,6 +236,48 @@ body[data-placement="right"] .drag-handle { left: 1px; }
   text-overflow: ellipsis;
 }
 
+.idle-usage, .event-usage, .workspace-usage { min-width: 0; }
+.idle-usage, .event-usage {
+  display: none;
+  flex: 0 0 auto;
+  margin-left: 8px;
+}
+.island.is-expanded .idle-usage,
+.island.is-expanded .event-usage { display: flex; }
+.idle-usage[hidden], .event-usage[hidden], .workspace-usage[hidden] { display: none !important; }
+
+.usage-chip {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  min-width: 58px;
+  height: 24px;
+  gap: 5px;
+  overflow: hidden;
+  padding: 0 7px;
+  border: 1px solid rgba(255, 255, 255, .075);
+  border-radius: 9px;
+  color: #a7afbf;
+  background: rgba(255, 255, 255, .035);
+  font-size: 8px;
+  line-height: 1;
+  white-space: nowrap;
+}
+.usage-chip::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: var(--usage-remaining, 0%);
+  height: 2px;
+  background: linear-gradient(90deg, #86a8ff, #7fe0c0);
+  opacity: .78;
+}
+.usage-chip strong { color: #d8deea; font-size: 7.5px; font-weight: 760; }
+.usage-chip.is-unavailable { opacity: .55; }
+.usage-chip.is-unavailable::after { display: none; }
+
 .snap-offer {
   position: absolute;
   z-index: 30;
@@ -550,7 +592,7 @@ h1 {
   opacity: 1;
   transform: translateY(0) scale(1);
   transform-origin: 50% 0;
-  animation: workspace-enter 360ms cubic-bezier(.16, 1, .3, 1) both;
+  animation: workspace-enter 210ms ease-out both;
 }
 
 .work-header {
@@ -559,6 +601,29 @@ h1 {
   align-items: center;
   min-width: 0;
   padding: 0 3px 4px 1px;
+}
+
+.workspace-usage {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+  height: 27px;
+  margin: 0 6px;
+  overflow: hidden;
+  padding: 0;
+}
+.workspace-usage .usage-chip {
+  flex: 0 1 auto;
+  height: 23px;
+  min-width: 0;
+  max-width: 100%;
+  padding: 0 8px;
+}
+.workspace-usage .usage-chip span {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .work-back-button {
@@ -586,7 +651,7 @@ h1 {
   flex: 0 0 174px;
   grid-template-columns: 1fr 1fr 1fr;
   height: 27px;
-  margin-right: auto;
+  margin-right: 0;
   padding: 2px;
   border: 1px solid rgba(255, 255, 255, .065);
   border-radius: 10px;
@@ -722,6 +787,11 @@ h1 {
   transform: translateY(5px) scale(.985);
   animation: work-item-enter 340ms cubic-bezier(.16, 1, .3, 1) forwards;
   transition: background 150ms ease, border-color 150ms ease, transform 180ms cubic-bezier(.16, 1, .3, 1);
+}
+.island.is-workspace .work-item {
+  opacity: 1;
+  transform: none;
+  animation: none;
 }
 .work-item:nth-child(2) { animation-delay: 24ms; }
 .work-item:nth-child(3) { animation-delay: 48ms; }

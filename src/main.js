@@ -42,6 +42,7 @@ let settings = { ...DEFAULT_SETTINGS };
 let isQuitting = false;
 let activeNotification = null;
 let activeAgents = [];
+const agentUsageById = new Map();
 let agentMonitor = null;
 let codexSessionMonitor = null;
 let clipboardHistory = null;
@@ -71,7 +72,11 @@ function todosPath() {
 
 function loadSettings() {
   try {
-    settings = { ...DEFAULT_SETTINGS, ...JSON.parse(fs.readFileSync(settingsPath(), 'utf8')) };
+    const storedSettings = JSON.parse(fs.readFileSync(settingsPath(), 'utf8'));
+    settings = { ...DEFAULT_SETTINGS, ...storedSettings };
+    // Existing installations already had clipboard history available; do not
+    // interrupt an upgrade with a new first-run modal.
+    if (!Object.prototype.hasOwnProperty.call(storedSettings, 'privacyNoticeSeen')) settings.privacyNoticeSeen = true;
   } catch {
     settings = { ...DEFAULT_SETTINGS };
   }
@@ -88,10 +93,10 @@ async function showFirstRunPrivacyNotice() {
   if (settings.privacyNoticeSeen || smokeCaptureArg) return;
   const result = await dialog.showMessageBox({
     type: 'info',
-    title: 'Agent Island privacy',
-    message: 'Clipboard history is enabled by default.',
-    detail: 'Agent Island keeps up to 30 recent text or image items in memory only. Nothing is uploaded, and the history disappears when the app exits. You can disable it from the tray menu at any time. Windows notification capture is off by default.',
-    buttons: ['Keep clipboard history on', 'Turn it off'],
+    title: 'Agent Island 隐私说明',
+    message: '剪贴板历史默认开启。',
+    detail: 'Agent Island 只在内存中保留最近 30 条文字或图片，不会上传；退出应用后历史会自动清除。你可以随时在托盘菜单中关闭。Windows 通知捕获默认关闭。',
+    buttons: ['保持开启', '关闭剪贴板历史'],
     defaultId: 0,
     cancelId: 1,
     noLink: true
@@ -129,6 +134,28 @@ function placementPayload() {
 
 function sendPlacement() {
   mainWindow?.webContents.send('island:placement', placementPayload());
+}
+
+function getAgentUsageSnapshot() {
+  const connected = new Map(activeAgents.map((agent) => [agent.id, agent]));
+  const ids = new Set([...connected.keys(), ...agentUsageById.keys()]);
+  return [...ids].map((agentId) => {
+    const usage = agentUsageById.get(agentId);
+    const agent = connected.get(agentId);
+    if (usage) return { ...usage, connected: Boolean(agent) };
+    return {
+      agentId,
+      label: agent?.label || agentId,
+      available: false,
+      connected: true,
+      reason: '该 Agent 未提供可读取的账户额度数据',
+      updatedAt: null
+    };
+  });
+}
+
+function sendAgentUsage() {
+  mainWindow?.webContents.send('island:usage', getAgentUsageSnapshot());
 }
 
 function positionIsland() {
@@ -228,7 +255,7 @@ function endIslandDrag() {
 }
 
 function resolveSnapOffer(accept) {
-  if (!snapOffer) return { ok: false, error: 'There is no pending snap choice.' };
+  if (!snapOffer) return { ok: false, error: '没有待处理的吸附选择。' };
   const offer = snapOffer;
   snapOffer = null;
   if (accept) {
@@ -337,6 +364,7 @@ function createWindow() {
     const latestEvent = apiServer?.history?.[0];
     if (latestEvent) mainWindow.webContents.send('island:event', latestEvent);
     mainWindow.webContents.send('island:agents', activeAgents);
+    sendAgentUsage();
   });
   mainWindow.once('ready-to-show', () => {
     enforceTrayOnlyWindow();
@@ -394,8 +422,8 @@ function toggleIslandVisibility() {
 function rebuildTrayMenu() {
   if (!tray) return;
   const agentSummary = activeAgents.length
-    ? activeAgents.map((agent) => `${agent.label} · ${agent.taskState?.label || 'Idle'}`).join(' · ')
-    : 'No supported agents are running';
+    ? activeAgents.map((agent) => `${agent.label} · ${agent.taskState?.label || '空闲'}`).join(' · ')
+    : '未检测到运行中的 Agent';
   const recentWindowsNotifications = (apiServer?.history || [])
     .filter((event) => event.context?.capturedFromWindows)
     .slice(0, 8)
@@ -407,11 +435,11 @@ function rebuildTrayMenu() {
       }
     }));
   tray.setContextMenu(Menu.buildFromTemplate([
-    { label: mainWindow?.isVisible() ? 'Hide Agent Island' : 'Show Agent Island', click: toggleIslandVisibility },
+    { label: mainWindow?.isVisible() ? '隐藏灵动岛' : '显示灵动岛', click: toggleIslandVisibility },
     { label: agentSummary, enabled: false },
     { type: 'separator' },
     {
-      label: 'Auto-hide and wake on approach',
+      label: '自动隐藏，靠近时唤醒',
       type: 'checkbox',
       checked: settings.autoHide,
       click: (item) => {
@@ -424,7 +452,7 @@ function rebuildTrayMenu() {
       }
     },
     {
-      label: 'Move to top center',
+      label: '回到主屏幕顶部中央',
       click: () => {
         const display = screen.getPrimaryDisplay();
         settings.placement = sanitizePlacement({ mode: 'top', ratio: 0.5, displayId: display.id });
@@ -435,7 +463,7 @@ function rebuildTrayMenu() {
     },
     { type: 'separator' },
     {
-      label: 'Clipboard history (memory only)',
+      label: '剪贴板历史（仅内存）',
       type: 'checkbox',
       checked: settings.clipboardHistory,
       click: (item) => {
@@ -447,7 +475,7 @@ function rebuildTrayMenu() {
       }
     },
     {
-      label: 'Capture Windows notifications',
+      label: '集中 Windows 通知到灵动岛',
       type: 'checkbox',
       checked: settings.captureWindowsNotifications,
       click: (item) => {
@@ -459,7 +487,7 @@ function rebuildTrayMenu() {
       }
     },
     {
-      label: 'Remove captured notifications from Action Center',
+      label: '捕获后从通知中心移除',
       type: 'checkbox',
       checked: settings.dismissCapturedNotifications,
       enabled: settings.captureWindowsNotifications,
@@ -470,51 +498,51 @@ function rebuildTrayMenu() {
         rebuildTrayMenu();
       }
     },
-    { label: `Windows notification access · ${windowsNotificationAccess}`, enabled: false },
+    { label: `Windows 通知权限 · ${windowsNotificationAccess}`, enabled: false },
     {
-      label: 'Recent Windows notifications',
-      submenu: recentWindowsNotifications.length ? recentWindowsNotifications : [{ label: 'No notifications yet', enabled: false }]
+      label: '最近的系统通知',
+      submenu: recentWindowsNotifications.length ? recentWindowsNotifications : [{ label: '暂无记录', enabled: false }]
     },
-    { label: 'Open Focus Assist settings', click: () => shell.openExternal('ms-settings:quiethours') },
-    { label: 'Test Windows notification capture', click: showWindowsCaptureTest },
+    { label: '打开专注助手设置', click: () => shell.openExternal('ms-settings:quiethours') },
+    { label: '测试：捕获一条 Windows 通知', click: showWindowsCaptureTest },
     { type: 'separator' },
     {
-      label: 'Demo: agent working',
-      click: () => apiServer.publish({ source: 'codex', type: 'progress', title: 'Organizing the project', message: '3 of 5 steps complete', progress: 62, ttl: 7000, systemNotify: false })
+      label: '测试：Agent 正在工作',
+      click: () => apiServer.publish({ source: 'codex', type: 'progress', title: '正在整理项目结构', message: '已完成 3 / 5 个步骤', progress: 62, ttl: 7000, systemNotify: false })
     },
     {
-      label: 'Demo: decision required',
-      click: () => apiServer.ask({ source: 'claude', title: 'Allow this test command?', message: 'npm test -- --runInBand', detail: 'This demo does not execute the command.', timeoutMs: 120000 })
+      label: '测试：需要决策',
+      click: () => apiServer.ask({ source: 'claude', title: '允许执行测试命令吗？', message: 'npm test -- --runInBand', detail: '这个演示不会真的执行命令。', timeoutMs: 120000 })
     },
     {
-      label: 'Demo: task complete',
-      click: () => apiServer.publish({ source: 'generic', type: 'success', title: 'Agent finished', message: 'All checks passed.', ttl: 7000 })
+      label: '测试：任务完成',
+      click: () => apiServer.publish({ source: 'generic', type: 'success', title: 'Agent 已完成任务', message: '所有检查均已通过。', ttl: 7000 })
     },
     { type: 'separator' },
     {
-      label: 'Mirror events to Windows notifications',
+      label: '同步到 Windows 通知中心',
       type: 'checkbox',
       checked: settings.systemNotifications,
       enabled: !settings.captureWindowsNotifications,
       click: (item) => { settings.systemNotifications = item.checked; saveSettings(); rebuildTrayMenu(); }
     },
     {
-      label: 'Start with Windows',
+      label: '开机自动启动',
       type: 'checkbox',
       checked: settings.startWithWindows,
       click: (item) => { setAutostart(item.checked); rebuildTrayMenu(); }
     },
-    { label: `Local API · 127.0.0.1:${settings.port}`, enabled: false },
+    { label: `本地 API · 127.0.0.1:${settings.port}`, enabled: false },
     { type: 'separator' },
-    { label: 'Open app folder', click: () => shell.openPath(path.resolve(__dirname, '..')) },
-    { label: 'Quit Agent Island', click: () => { isQuitting = true; app.quit(); } }
+    { label: '打开项目目录', click: () => shell.openPath(path.resolve(__dirname, '..')) },
+    { label: '退出 Agent Island', click: () => { isQuitting = true; app.quit(); } }
   ]));
 }
 
 function createTray() {
   const trayImage = createTrayImage();
   tray = new Tray(trayImage);
-  tray.setToolTip('Agent Island · AI coding agent command center');
+  tray.setToolTip('Agent Island · AI Agent 通知中心');
   tray.on('click', toggleIslandVisibility);
   rebuildTrayMenu();
 }
@@ -525,7 +553,7 @@ function showSystemNotification(event) {
   if (activeNotification && event.type === 'progress') activeNotification.close();
   activeNotification = new Notification({
     title: `${event.sourceLabel} · ${event.title}`,
-    body: event.message || event.detail || 'Status updated',
+    body: event.message || event.detail || '状态已更新',
     silent: event.silent,
     urgency: event.type === 'decision' || event.type === 'error' ? 'critical' : 'normal',
     timeoutType: event.type === 'decision' ? 'never' : 'default'
@@ -547,13 +575,13 @@ function glyphForApp(appName = 'Windows') {
 }
 
 const EVENT_STATUS_LABELS = {
-    working: 'Working',
-    progress: 'In progress',
-    success: 'Complete',
-    error: 'Needs attention',
-    warning: 'Waiting',
-    decision: 'Decision needed',
-    notification: 'Notification'
+    working: '工作中',
+    progress: '进行中',
+    success: '已完成',
+    error: '需要注意',
+    warning: '等待处理',
+    decision: '等待决策',
+    notification: '通知'
 };
 
 const SOURCE_PROCESS_HINTS = {
@@ -606,7 +634,7 @@ function targetForEvent(event) {
 function buildWorkItems() {
   const items = [];
   for (const agent of activeAgents) {
-  const taskState = agent.taskState || { status: 'idle', label: 'Idle', title: '', message: '' };
+  const taskState = agent.taskState || { status: 'idle', label: '空闲', title: '', message: '' };
     const isActiveTask = ['working', 'waiting'].includes(taskState.status);
     items.push({
       id: `agent:${agent.id}`,
@@ -615,8 +643,8 @@ function buildWorkItems() {
       accent: agent.id,
       title: `${agent.label} · ${taskState.label}`,
       subtitle: isActiveTask
-      ? `${taskState.message || taskState.title || 'Processing a task'} · Click to return`
-      : `${agent.processCount} process${agent.processCount === 1 ? '' : 'es'} · No active task · Click to return`,
+      ? `${taskState.message || taskState.title || '正在处理真实任务'} · 点击返回应用`
+      : `${agent.processCount} 个进程 · 当前无任务 · 点击返回应用`,
       status: taskState.label,
       target: targetForAgent(agent)
     });
@@ -636,7 +664,7 @@ function buildWorkItems() {
       accent: event.source,
       title: event.title,
       subtitle: event.message || event.detail || event.sourceLabel,
-      status: EVENT_STATUS_LABELS[event.type] || 'Task',
+      status: EVENT_STATUS_LABELS[event.type] || '任务',
       target: targetForEvent(event)
     });
     if (seenTasks.size >= 4) break;
@@ -649,8 +677,8 @@ function buildWorkItems() {
       glyph: event.sourceGlyph,
       accent: 'system',
       title: `${event.sourceLabel} · ${event.title}`,
-      subtitle: event.message || 'Windows notification',
-      status: 'Notification',
+      subtitle: event.message || 'Windows 系统通知',
+      status: '通知',
       eventId: event.id,
       deletable: true,
       target: targetForEvent(event)
@@ -693,7 +721,7 @@ function focusExistingWindow(target = {}) {
 function deleteHistoryEvent(eventId) {
   const before = apiServer?.history?.length || 0;
   if (apiServer) apiServer.history = apiServer.history.filter((event) => event.id !== String(eventId));
-  if ((apiServer?.history?.length || 0) === before) return { ok: false, error: 'The notification does not exist or was already deleted.' };
+  if ((apiServer?.history?.length || 0) === before) return { ok: false, error: '通知不存在或已经删除。' };
   mainWindow?.webContents.send('island:event-deleted', String(eventId));
   rebuildTrayMenu();
   return { ok: true };
@@ -712,7 +740,7 @@ async function activateTarget(target = {}) {
     child.unref();
     return { ok: true, action: 'launched' };
   }
-  return { ok: false, error: 'No matching application window was found.' };
+  return { ok: false, error: '没有找到可以跳转的应用窗口。' };
 }
 
 function publishWindowsNotification(payload) {
@@ -722,9 +750,9 @@ function publishWindowsNotification(payload) {
     sourceLabel: appName,
     sourceGlyph: glyphForApp(appName),
     type: 'notification',
-    title: payload.title || `${appName} notification`,
+    title: payload.title || `${appName} 通知`,
     message: payload.message || '',
-    detail: `From ${appName} · Windows notification`,
+    detail: `来自 ${appName} · Windows 系统通知`,
     ttl: 6500,
     systemNotify: false,
     context: {
@@ -763,8 +791,8 @@ function startWindowsNotificationBridge() {
       apiServer.publish({
         source: 'system',
         type: 'warning',
-        title: 'Windows notification access is required',
-        message: 'Allow notification access in Windows Settings, then enable capture again.',
+        title: '需要 Windows 通知访问权限',
+        message: '请在 Windows 设置中允许通知访问，然后重新开启集中通知。',
         ttl: 0,
         systemNotify: false
       });
@@ -815,21 +843,21 @@ function startTodoStore() {
 }
 
 async function exportTodosToNotion() {
-  if (!todoStore?.getItems().length) return { ok: false, error: 'There are no todos to send to Notion.' };
+  if (!todoStore?.getItems().length) return { ok: false, error: '还没有可以发送到 Notion 的待办。' };
   clipboard.writeText(todoStore.exportMarkdown());
   await shell.openExternal('https://www.notion.so/');
   return {
     ok: true,
     mode: 'clipboard',
-    message: 'Todos were copied as Markdown and Notion was opened. Paste them into your page.'
+    message: '待办已整理到剪贴板，并已打开 Notion；直接粘贴即可。'
   };
 }
 
 function showWindowsCaptureTest() {
   if (!Notification.isSupported()) return;
   new Notification({
-    title: 'Windows notification capture test',
-    body: 'Agent Island should capture and display this notification.',
+    title: 'Windows 通知捕获测试',
+    body: '这条系统通知将被 Agent Island 捕获并集中显示。',
     silent: true
   }).show();
 }
@@ -838,6 +866,7 @@ function syncAgentTaskStates() {
   activeAgents = taskTracker.mergeAgents(activeAgents);
   if (apiServer) apiServer.activeAgents = activeAgents;
   mainWindow?.webContents.send('island:agents', activeAgents);
+  sendAgentUsage();
   rebuildTrayMenu();
 }
 
@@ -878,18 +907,19 @@ function registerIpc() {
   ipcMain.handle('island:resolve-snap', (_event, accept) => resolveSnapOffer(Boolean(accept)));
   ipcMain.handle('island:respond', (_event, { id, choice }) => apiServer.respond(id, choice));
   ipcMain.handle('island:hide', () => mainWindow?.hide());
-  ipcMain.handle('island:get-state', () => ({ api: apiServer.getState(), settings: { ...settings, placement: placementPayload() }, activeAgents }));
+  ipcMain.handle('island:get-state', () => ({ api: apiServer.getState(), settings: { ...settings, placement: placementPayload() }, activeAgents, agentUsage: getAgentUsageSnapshot() }));
+  ipcMain.handle('island:get-usage', () => getAgentUsageSnapshot());
   ipcMain.handle('island:get-work-items', () => buildWorkItems());
   ipcMain.handle('island:activate-target', (_event, target) => activateTarget(target));
   ipcMain.handle('island:delete-history-event', (_event, id) => deleteHistoryEvent(id));
   ipcMain.handle('island:get-clipboard-items', () => clipboardHistory?.getItems() || []);
-  ipcMain.handle('island:restore-clipboard-item', (_event, id) => clipboardHistory?.restore(id) || { ok: false, error: 'Clipboard history is disabled.' });
+  ipcMain.handle('island:restore-clipboard-item', (_event, id) => clipboardHistory?.restore(id) || { ok: false, error: '剪贴板历史尚未启动。' });
   ipcMain.handle('island:clear-clipboard-history', () => clipboardHistory?.clear() || { ok: true });
   ipcMain.handle('island:get-todos', () => todoStore?.getItems() || []);
-  ipcMain.handle('island:create-todo', (_event, title) => todoStore?.create(title) || { ok: false, error: 'Todo storage is unavailable.' });
-  ipcMain.handle('island:toggle-todo', (_event, id) => todoStore?.toggle(id) || { ok: false, error: 'Todo storage is unavailable.' });
-  ipcMain.handle('island:toggle-todo-timer', (_event, id) => todoStore?.toggleTimer(id) || { ok: false, error: 'Todo storage is unavailable.' });
-  ipcMain.handle('island:delete-todo', (_event, id) => todoStore?.delete(id) || { ok: false, error: 'Todo storage is unavailable.' });
+  ipcMain.handle('island:create-todo', (_event, title) => todoStore?.create(title) || { ok: false, error: '待办尚未启动。' });
+  ipcMain.handle('island:toggle-todo', (_event, id) => todoStore?.toggle(id) || { ok: false, error: '待办尚未启动。' });
+  ipcMain.handle('island:toggle-todo-timer', (_event, id) => todoStore?.toggleTimer(id) || { ok: false, error: '待办尚未启动。' });
+  ipcMain.handle('island:delete-todo', (_event, id) => todoStore?.delete(id) || { ok: false, error: '待办尚未启动。' });
   ipcMain.handle('island:clear-completed-todos', () => todoStore?.clearCompleted() || { ok: true });
   ipcMain.handle('island:export-todos-to-notion', () => exportTodosToNotion());
 }
@@ -900,6 +930,7 @@ function startAgentMonitor() {
     activeAgents = taskTracker.mergeAgents(agents);
     apiServer.activeAgents = activeAgents;
     mainWindow?.webContents.send('island:agents', activeAgents);
+    sendAgentUsage();
     rebuildTrayMenu();
   });
   agentMonitor.on('error', () => {});
@@ -942,14 +973,18 @@ function startCodexSessionMonitor() {
       apiServer.publish({
         source: 'codex',
         type: 'success',
-        title: 'Codex finished',
-        message: 'The current Codex task has finished.',
+        title: 'Codex 已完成',
+        message: '本轮真实任务已经结束。',
         taskId: state.taskId,
         ttl: 6500,
         systemNotify: true,
         context: { hookEventName: 'CodexDesktopTaskComplete', codexSessionMonitor: true }
       });
     }
+  });
+  codexSessionMonitor.on('usage', (usage) => {
+    agentUsageById.set('codex', usage);
+    sendAgentUsage();
   });
   codexSessionMonitor.on('error', () => {});
   codexSessionMonitor.start();
@@ -965,7 +1000,9 @@ async function runSmokeCapture() {
   const smokePlacementArg = process.argv.find((arg) => arg.startsWith('--smoke-placement='));
   const smokePlacement = smokePlacementArg?.slice('--smoke-placement='.length) || '';
   const smokeSideExpanded = process.argv.includes('--smoke-side-expanded');
+  const smokeHoverExpanded = process.argv.includes('--smoke-hover-expanded');
   const smokeFullCanvas = process.argv.includes('--smoke-full-canvas');
+  const smokeUsage = process.argv.includes('--smoke-usage');
   const smokeWorkspace = smokeClipboard || smokeTodo || smokeRepairs || process.argv.includes('--smoke-workspace');
   const output = smokeCaptureArg.slice('--smoke-capture='.length);
   const outputPath = path.resolve(process.cwd(), output);
@@ -976,6 +1013,16 @@ async function runSmokeCapture() {
   const expectedBounds = targetBounds();
   if (anchoredBounds.x !== expectedBounds.x || anchoredBounds.y !== expectedBounds.y) {
     throw new Error(`Island is not anchored to the primary display: ${JSON.stringify(anchoredBounds)}`);
+  }
+  if (smokeUsage) {
+    agentUsageById.set('codex', {
+      agentId: 'codex', label: 'Codex', available: true,
+      usedPercent: 23, remainingPercent: 77, windowMinutes: 10080,
+      resetsAt: Math.floor(Date.now() / 1000) + 2 * 86400,
+      planType: 'plus', contextUsedPercent: 42,
+      updatedAt: new Date().toISOString()
+    });
+    sendAgentUsage();
   }
   if (smokePlacement) {
     if (!['top', 'bottom', 'left', 'right', 'free'].includes(smokePlacement)) {
@@ -1020,6 +1067,18 @@ async function runSmokeCapture() {
         throw new Error(`Side hover did not expand horizontally: ${JSON.stringify(expandedState)}`);
       }
     }
+    if (smokeHoverExpanded) {
+      await mainWindow.webContents.executeJavaScript("document.getElementById('island').dispatchEvent(new MouseEvent('mouseenter'))");
+      await new Promise((resolve) => setTimeout(resolve, 360));
+      const hoverState = await mainWindow.webContents.executeJavaScript(`(() => ({
+        expanded: document.getElementById('island').classList.contains('is-expanded'),
+        usageCount: document.getElementById('idleUsage').children.length,
+        width: Math.round(document.getElementById('island').getBoundingClientRect().width)
+      }))()`);
+      if (!hoverState.expanded || (smokeUsage && hoverState.usageCount < 1) || hoverState.width < 300) {
+        throw new Error(`Hover usage did not render correctly: ${JSON.stringify(hoverState)}`);
+      }
+    }
     const placementBounds = await mainWindow.webContents.executeJavaScript(`(() => {
       const rect = document.getElementById('island').getBoundingClientRect();
       return { x: Math.floor(rect.x), y: Math.floor(rect.y), width: Math.ceil(rect.width), height: Math.ceil(rect.height) };
@@ -1040,9 +1099,9 @@ async function runSmokeCapture() {
     apiServer.activeAgents = activeAgents;
     mainWindow.webContents.send('island:agents', activeAgents);
     const pixelEvents = {
-    working: { source: 'codex', type: 'working', title: 'Codex is organizing code', message: 'The pixel agent is on the move', ttl: 0 },
-    resting: { source: 'codex', type: 'success', title: 'Agent finished the task', message: 'The pixel agent is taking a break', ttl: 0 },
-    alert: { source: 'system', type: 'notification', title: 'Needs your attention', message: 'The pixel agent is signaling you', ttl: 0 }
+    working: { source: 'codex', type: 'working', title: 'Codex 正在整理代码', message: '像素 Agent 正在跑动', ttl: 0 },
+    resting: { source: 'codex', type: 'success', title: 'Agent 已完成工作', message: '像素 Agent 已经趴下休息', ttl: 0 },
+    alert: { source: 'system', type: 'notification', title: '需要你的注意', message: '像素 Agent 正在拍打地面', ttl: 0 }
     };
     apiServer.publish({ ...pixelEvents[smokePixel], systemNotify: false });
     await new Promise((resolve) => setTimeout(resolve, 780));
@@ -1077,17 +1136,17 @@ async function runSmokeCapture() {
   }
   if (smokeClipboard) {
     clipboardHistory.addText('npm test && npm run build');
-    clipboardHistory.addText('Turn the expanded view into work and clipboard pages');
-    clipboardHistory.addText('Scroll down to switch pages and up to return');
+      clipboardHistory.addText('把二次展开调整为工作、待办与剪贴板三页');
+      clipboardHistory.addText('滚轮向下切页，向上返回工作列表');
   }
   if (smokeTodo) {
     todoStore = new TodoStore({ now: () => new Date('2026-07-15T08:00:00.000Z') });
     todoStore.on('changed', (items) => mainWindow?.webContents.send('island:todos-changed', items));
-    const completed = todoStore.create('Fix notification deletion').item;
+      const completed = todoStore.create('修复通知删除').item;
     todoStore.toggle(completed.id);
-    const running = todoStore.create('Polish the todo timer animation').item;
+      const running = todoStore.create('打磨待办计时动效').item;
     todoStore.toggleTimer(running.id);
-    todoStore.create('Design the Notion sync entry point');
+      todoStore.create('设计 Notion 同步入口');
   }
   if (smokeRepairs) {
     apiServer.publish({
@@ -1095,8 +1154,8 @@ async function runSmokeCapture() {
       sourceLabel: 'Outlook',
       sourceGlyph: 'OU',
       type: 'notification',
-      title: 'Deletable notification test',
-      message: 'This notification should show its own delete button.',
+      title: '可删除通知测试',
+      message: '这条通知应显示独立删除按钮。',
       systemNotify: false,
       context: { capturedFromWindows: true, appUserModelId: 'Microsoft.OutlookForWindows_8wekyb3d8bbwe!Microsoft.OutlookforWindows' }
     });
@@ -1104,9 +1163,9 @@ async function runSmokeCapture() {
   const smokeDecision = apiServer.ask({
     id: 'ui-smoke-decision',
     source: 'claude',
-      title: 'Allow the pre-release checks?',
+      title: '允许执行发布前检查吗？',
     message: 'npm test && npm run build',
-      detail: 'The agent will run local tests and build the Windows package.',
+      detail: 'Agent 将在本机运行测试并生成 Windows 安装包。',
     actions: [
         { id: 'allow', label: 'Allow', style: 'primary' },
         { id: 'deny', label: 'Deny', style: 'danger' }
@@ -1134,12 +1193,17 @@ async function runSmokeCapture() {
         open: island.classList.contains('is-workspace'),
         itemCount: list.children.length,
         width: rect.width,
-        height: rect.height
+        height: rect.height,
+        usageCount: document.getElementById('workspaceUsage').children.length,
+        metrics: window.__agentIslandSmoke?.workspaceMetrics()
       };
     })()`);
     if (!workspaceState.open || workspaceState.itemCount < 3 || workspaceState.width < 410 || workspaceState.height < 190) {
       throw new Error(`Workspace did not open correctly: ${JSON.stringify(workspaceState)}`);
     }
+    console.log(`Workspace metrics: ${JSON.stringify(workspaceState.metrics)}`);
+    if (smokeUsage && workspaceState.usageCount < 1) throw new Error('Workspace usage quota did not render');
+    if (workspaceState.metrics?.shellMs > 50) throw new Error(`Workspace shell was blocked for ${workspaceState.metrics.shellMs}ms`);
   }
   if (smokeRepairs) {
     const deletionState = await mainWindow.webContents.executeJavaScript(`(async () => {
@@ -1150,7 +1214,7 @@ async function runSmokeCapture() {
       await new Promise((resolve) => setTimeout(resolve, 260));
       return { hadButton: true, removed: !document.querySelector('.work-item.notification') };
     })()`);
-    if (!deletionState.hadButton || !deletionState.removed || apiServer.history.some((event) => event.title === 'Deletable notification test')) {
+      if (!deletionState.hadButton || !deletionState.removed || apiServer.history.some((event) => event.title === '可删除通知测试')) {
       throw new Error(`Notification deletion failed: ${JSON.stringify(deletionState)}`);
     }
   }
@@ -1243,7 +1307,6 @@ if (!gotLock) {
   app.whenReady().then(async () => {
     loadSettings();
     createWindow();
-    await showFirstRunPrivacyNotice();
     startClipboardHistory();
     startTodoStore();
     apiServer = new AgentIslandServer({ port: smokeCaptureArg ? 0 : settings.port });
@@ -1251,6 +1314,11 @@ if (!gotLock) {
     registerIpc();
     createTray();
     await apiServer.start();
+    void showFirstRunPrivacyNotice().then(() => {
+      if (settings.clipboardHistory) startClipboardHistory();
+      else stopClipboardHistory();
+      rebuildTrayMenu();
+    }).catch(() => {});
 
     screen.on('display-metrics-changed', positionIsland);
     screen.on('display-added', positionIsland);
@@ -1265,8 +1333,8 @@ if (!gotLock) {
         apiServer.publish({
           source: 'system',
           type: 'success',
-          title: 'Agent Island is ready',
-          message: `Listening on 127.0.0.1:${settings.port}`,
+          title: 'Agent Island 已就绪',
+          message: `正在监听 127.0.0.1:${settings.port}`,
           ttl: 4500,
           systemNotify: false
         });

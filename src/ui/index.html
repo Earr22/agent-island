@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,7 +9,7 @@
 </head>
 <body data-placement="top">
   <main id="island" class="island is-idle" data-type="idle" aria-live="polite">
-    <button id="dragHandle" class="drag-handle" type="button" title="Move Agent Island" aria-label="Move Agent Island">
+    <button id="dragHandle" class="drag-handle" type="button" title="拖动灵动岛" aria-label="拖动灵动岛">
       <span></span><span></span><span></span>
     </button>
     <div class="ambient ambient-one"></div>
@@ -17,7 +17,7 @@
 
     <section id="idleView" class="idle-view">
       <div class="idle-brand">
-        <span class="pixel-companion" data-pixel-agent data-state="resting" role="img" aria-label="Agent is resting">
+        <span class="pixel-companion" data-pixel-agent data-state="resting" role="img" aria-label="Agent 正在休息">
           <span class="pixel-ground"></span>
           <span class="pixel-creature">
             <i class="pixel-blob"></i><i class="pixel-face"></i>
@@ -28,7 +28,8 @@
         </span>
         <span id="brandName" class="brand-name">Agent Island</span>
       </div>
-      <div id="idleAgents" class="idle-agents" aria-label="Agent status"></div>
+      <div id="idleAgents" class="idle-agents" aria-label="Agent 状态"></div>
+      <div id="idleUsage" class="idle-usage" aria-label="Agent 使用额度" hidden></div>
       <span id="idleTodoTimer" class="idle-todo-timer" hidden>00:00</span>
       <time id="clock" class="clock">--:--</time>
     </section>
@@ -36,7 +37,7 @@
     <section id="eventView" class="event-view" hidden>
       <header class="event-header">
         <div id="sourceGlyph" class="source-glyph pixel-host">
-          <span class="pixel-companion" data-pixel-agent data-state="resting" role="img" aria-label="Agent is resting">
+          <span class="pixel-companion" data-pixel-agent data-state="resting" role="img" aria-label="Agent 正在休息">
             <span class="pixel-ground"></span>
             <span class="pixel-creature">
               <i class="pixel-blob"></i><i class="pixel-face"></i>
@@ -50,14 +51,15 @@
           <div class="event-meta">
             <span id="sourceLabel">Agent</span>
             <span class="meta-dot">·</span>
-            <span id="statusLabel">Notification</span>
+            <span id="statusLabel">通知</span>
           </div>
-          <h1 id="eventTitle">Status update</h1>
+          <h1 id="eventTitle">状态更新</h1>
           <p id="eventMessage"></p>
         </div>
+        <div id="eventUsage" class="event-usage" aria-label="Agent 使用额度" hidden></div>
         <span id="queueCount" class="queue-count" hidden></span>
         <div id="statusIcon" class="status-icon" aria-hidden="true"></div>
-        <button id="dismissButton" class="icon-button dismiss-button" title="Collapse" aria-label="Collapse">
+        <button id="dismissButton" class="icon-button dismiss-button" title="收起" aria-label="收起">
           <svg viewBox="0 0 20 20"><path d="M6 6l8 8M14 6l-8 8"/></svg>
         </button>
       </header>
@@ -71,26 +73,27 @@
       <div id="actions" class="actions" hidden></div>
       <footer id="eventFooter" class="event-footer">
         <span class="live-dot"></span>
-        <span id="footerText">Local connection</span>
+        <span id="footerText">本地连接</span>
       </footer>
     </section>
 
     <section id="workView" class="work-view" hidden>
       <header class="work-header">
-        <button id="workBackButton" class="work-back-button" type="button" title="Back to preview" aria-label="Back to preview">
+        <button id="workBackButton" class="work-back-button" type="button" title="返回预览" aria-label="返回预览">
           <svg viewBox="0 0 20 20"><path d="M12.5 5L7.5 10l5 5"/></svg>
         </button>
-        <nav id="workspaceTabs" class="workspace-tabs" role="tablist" aria-label="Agent Island pages">
+        <nav id="workspaceTabs" class="workspace-tabs" role="tablist" aria-label="灵动岛页面">
           <span class="workspace-tab-indicator" aria-hidden="true"></span>
-          <button id="workTab" class="workspace-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="workPage">Work</button>
-          <button id="todoTab" class="workspace-tab" type="button" role="tab" aria-selected="false" aria-controls="todoPage">Todos</button>
-          <button id="clipboardTab" class="workspace-tab" type="button" role="tab" aria-selected="false" aria-controls="clipboardPage">Clipboard</button>
+          <button id="workTab" class="workspace-tab is-active" type="button" role="tab" aria-selected="true" aria-controls="workPage">工作</button>
+          <button id="todoTab" class="workspace-tab" type="button" role="tab" aria-selected="false" aria-controls="todoPage">待办</button>
+          <button id="clipboardTab" class="workspace-tab" type="button" role="tab" aria-selected="false" aria-controls="clipboardPage">剪贴板</button>
         </nav>
-        <button id="addTodoButton" class="workspace-action-button" type="button" title="New todo" aria-label="New todo" hidden>
+        <div id="workspaceUsage" class="workspace-usage" aria-label="Agent 使用额度" hidden></div>
+        <button id="addTodoButton" class="workspace-action-button" type="button" title="新建待办" aria-label="新建待办" hidden>
           <svg viewBox="0 0 20 20"><path d="M10 4v12M4 10h12"/></svg>
         </button>
-        <button id="notionTodoButton" class="workspace-action-button notion-button" type="button" title="Send to Notion" aria-label="Send to Notion" hidden>N</button>
-        <button id="clearClipboardButton" class="clear-clipboard-button" type="button" title="Clear clipboard history" aria-label="Clear clipboard history" hidden>
+        <button id="notionTodoButton" class="workspace-action-button notion-button" type="button" title="发送到 Notion" aria-label="发送到 Notion" hidden>N</button>
+        <button id="clearClipboardButton" class="clear-clipboard-button" type="button" title="清空剪贴板历史" aria-label="清空剪贴板历史" hidden>
           <svg viewBox="0 0 20 20"><path d="M5.5 6.5h9M8 6.5V4.8h4v1.7M7 8.5l.5 6.7h5l.5-6.7"/></svg>
         </button>
         <span id="workCount" class="work-count">0</span>
@@ -99,31 +102,31 @@
         <div id="workspaceTrack" class="workspace-track">
           <section id="workPage" class="workspace-page" role="tabpanel" aria-labelledby="workTab">
             <div id="workList" class="work-list" role="list"></div>
-            <div id="workEmpty" class="work-empty" hidden>No active tasks to open</div>
+            <div id="workEmpty" class="work-empty" hidden>暂时没有可跳转的任务</div>
           </section>
           <section id="todoPage" class="workspace-page todo-page" role="tabpanel" aria-labelledby="todoTab">
             <form id="todoComposer" class="todo-composer" hidden>
-              <input id="todoInput" type="text" maxlength="160" autocomplete="off" placeholder="Add a todo…" aria-label="Todo text">
-              <button id="submitTodoButton" type="submit">Add</button>
+              <input id="todoInput" type="text" maxlength="160" autocomplete="off" placeholder="输入新的待办…" aria-label="待办内容">
+              <button id="submitTodoButton" type="submit">添加</button>
             </form>
             <div id="todoList" class="todo-list" role="list"></div>
-            <div id="todoEmpty" class="work-empty" hidden>Use + to create your first todo</div>
+            <div id="todoEmpty" class="work-empty" hidden>点击右上角 + 创建第一条待办</div>
             <div id="todoToast" class="todo-toast" hidden></div>
           </section>
           <section id="clipboardPage" class="workspace-page clipboard-page" role="tabpanel" aria-labelledby="clipboardTab">
             <div id="clipboardList" class="clipboard-list" role="list"></div>
-            <div id="clipboardEmpty" class="work-empty" hidden>Copied text and images appear here</div>
+            <div id="clipboardEmpty" class="work-empty" hidden>复制文字或图片后会出现在这里</div>
           </section>
         </div>
       </div>
-      <footer class="work-footer"><span id="workspaceHint">Scroll down for clipboard history</span></footer>
+      <footer class="work-footer"><span id="workspaceHint">滚轮向下切到剪贴板</span></footer>
     </section>
 
     <aside id="snapOffer" class="snap-offer" hidden aria-live="assertive">
-      <span id="snapOfferText">Snap to the screen edge?</span>
+      <span id="snapOfferText">吸附到屏幕边缘？</span>
       <div>
-        <button id="acceptSnapButton" type="button">Snap</button>
-        <button id="declineSnapButton" type="button">Keep here</button>
+        <button id="acceptSnapButton" type="button">吸附</button>
+        <button id="declineSnapButton" type="button">保持这里</button>
       </div>
     </aside>
   </main>

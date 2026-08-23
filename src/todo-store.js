@@ -82,7 +82,7 @@ class TodoStore extends EventEmitter {
 
   create(title) {
     const clean = cleanTitle(title);
-    if (!clean) return { ok: false, error: 'Enter a todo.' };
+    if (!clean) return { ok: false, error: '请输入待办内容。' };
     const timestamp = this.now().toISOString();
     const item = {
       id: randomUUID(),
@@ -101,7 +101,7 @@ class TodoStore extends EventEmitter {
 
   toggle(id) {
     const item = this.items.find((entry) => entry.id === String(id));
-    if (!item) return { ok: false, error: 'Todo not found.' };
+    if (!item) return { ok: false, error: '待办不存在。' };
     const now = this.now();
     if (!item.completed && item.timerStartedAt) {
       item.elapsedMs = this.elapsedFor(item, now);
@@ -115,8 +115,8 @@ class TodoStore extends EventEmitter {
 
   toggleTimer(id) {
     const item = this.items.find((entry) => entry.id === String(id));
-    if (!item) return { ok: false, error: 'Todo not found.' };
-    if (item.completed) return { ok: false, error: 'A completed todo cannot be timed.' };
+    if (!item) return { ok: false, error: '待办不存在。' };
+    if (item.completed) return { ok: false, error: '已完成的待办不能继续计时。' };
     const now = this.now();
     if (item.timerStartedAt) {
       item.elapsedMs = this.elapsedFor(item, now);
@@ -137,7 +137,7 @@ class TodoStore extends EventEmitter {
   delete(id) {
     const before = this.items.length;
     this.items = this.items.filter((entry) => entry.id !== String(id));
-    if (this.items.length === before) return { ok: false, error: 'Todo not found.' };
+    if (this.items.length === before) return { ok: false, error: '待办不存在。' };
     this.commit();
     return { ok: true };
   }
@@ -152,9 +152,9 @@ class TodoStore extends EventEmitter {
     const generatedAt = this.now().toISOString();
     const rows = this.getItems().map((item) => {
       const state = item.completed ? 'x' : ' ';
-      return `- [${state}] ${item.title} · elapsed ${item.elapsedLabel} · created ${item.createdAt} · updated ${item.updatedAt}`;
+      return `- [${state}] ${item.title} · 用时 ${item.elapsedLabel} · 创建 ${item.createdAt} · 更新 ${item.updatedAt}`;
     });
-    return [`# Agent Island todos`, ``, ...rows, ``, `Exported: ${generatedAt}`].join('\n');
+    return [`# Agent Island 待办`, ``, ...rows, ``, `导出时间：${generatedAt}`].join('\n');
   }
 
   commit() {

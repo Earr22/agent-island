@@ -22,9 +22,44 @@ function sessionIdFromPath(filePath = '') {
   return match?.[1] || name;
 }
 
+function finiteNumber(value, fallback = null) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : fallback;
+}
+
+function usageFromRecord(record = {}) {
+  if (record?.type !== 'event_msg' || record.payload?.type !== 'token_count') return null;
+  const info = record.payload?.info || {};
+  const limits = record.payload?.rate_limits || {};
+  const primary = limits.primary || null;
+  const usedPercent = primary ? finiteNumber(primary.used_percent) : null;
+  const contextWindow = finiteNumber(info.model_context_window);
+  const lastTokens = finiteNumber(info.last_token_usage?.total_tokens);
+  const contextUsedPercent = contextWindow && lastTokens !== null
+    ? Math.max(0, Math.min(100, lastTokens / contextWindow * 100))
+    : null;
+  return {
+    kind: 'usage',
+    agentId: 'codex',
+    label: 'Codex',
+    available: usedPercent !== null,
+    usedPercent: usedPercent === null ? null : Math.max(0, Math.min(100, usedPercent)),
+    remainingPercent: usedPercent === null ? null : Math.max(0, Math.min(100, 100 - usedPercent)),
+    windowMinutes: finiteNumber(primary?.window_minutes),
+    resetsAt: finiteNumber(primary?.resets_at),
+    planType: String(limits.plan_type || ''),
+    contextUsedPercent,
+    contextWindow,
+    lastTokens,
+    updatedAt: record.timestamp || new Date().toISOString()
+  };
+}
+
 function eventFromLine(line = '') {
   try {
     const record = JSON.parse(line);
+    const usage = usageFromRecord(record);
+    if (usage) return usage;
     if (record?.type !== 'event_msg') return null;
     const eventType = String(record.payload?.type || '');
     if (eventType === 'task_started') {
@@ -120,6 +155,7 @@ class CodexSessionMonitor extends EventEmitter {
     this.dirtyFiles = new Set();
     this.lastDiscoveryAt = 0;
     this.lastSignature = null;
+    this.lastUsageSignature = null;
     this.lastStatus = null;
   }
 
@@ -131,12 +167,17 @@ class CodexSessionMonitor extends EventEmitter {
       partial: '',
       activeTurns: new Map(),
       latestTurnId: '',
+      usage: null,
       lastWriteMs: 0
     };
   }
 
   applyEvent(fileState, event) {
     if (!event) return;
+    if (event.kind === 'usage') {
+      fileState.usage = event;
+      return;
+    }
     if (event.kind === 'start') {
       const turnId = event.turnId || `${fileState.sessionId}:${event.timestamp || fileState.lastWriteMs}`;
       // A Codex thread executes one foreground turn at a time. If the user
@@ -244,9 +285,9 @@ class CodexSessionMonitor extends EventEmitter {
     if (!current) {
       return {
         status: 'idle',
-        label: 'Idle',
-        title: 'Codex is idle',
-        message: 'Connected with no active task.',
+      label: '空闲',
+      title: 'Codex 当前空闲',
+      message: '已连接，当前没有活动任务。',
         taskId: '',
         activeCount: 0,
         updatedAt: new Date(this.now()).toISOString()
@@ -254,9 +295,9 @@ class CodexSessionMonitor extends EventEmitter {
     }
     return {
       status: 'working',
-      label: 'Working',
-      title: active.length > 1 ? `Codex is handling ${active.length} tasks` : 'Codex is working',
-      message: current.prompt || 'Processing a task…',
+    label: '工作中',
+    title: active.length > 1 ? `Codex 正在处理 ${active.length} 个任务` : 'Codex 正在工作',
+    message: current.prompt || '正在处理真实任务…',
       taskId: current.turnId || current.sessionId,
       sessionId: current.sessionId,
       activeCount: active.length,
@@ -278,6 +319,18 @@ class CodexSessionMonitor extends EventEmitter {
     this.emit('state', state, { initial, transition });
   }
 
+  emitUsage() {
+    const latest = [...this.files.values()]
+      .map((state) => state.usage)
+      .filter(Boolean)
+      .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())[0];
+    if (!latest) return;
+    const signature = JSON.stringify(latest);
+    if (signature === this.lastUsageSignature) return;
+    this.lastUsageSignature = signature;
+    this.emit('usage', latest);
+  }
+
   async poll({ forceDiscover = false } = {}) {
     if (forceDiscover) this.forceDiscovery = true;
     if (this.polling) {
@@ -292,6 +345,7 @@ class CodexSessionMonitor extends EventEmitter {
       if (shouldDiscover) await this.discover();
       await this.readUpdates(shouldDiscover || dirtyFiles.size === 0 ? null : dirtyFiles);
       this.emitState();
+      this.emitUsage();
     } catch (error) {
       this.emit('error', error);
     } finally {
@@ -364,5 +418,6 @@ module.exports = {
   CodexSessionMonitor,
   cleanPrompt,
   eventFromLine,
+  usageFromRecord,
   sessionIdFromPath
 };

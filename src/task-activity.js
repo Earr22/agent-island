@@ -33,13 +33,13 @@ class AgentTaskTracker {
   }
 
   makePublic(source, status, event = {}) {
-    const label = status === 'working' ? 'Working' : (status === 'waiting' ? 'Waiting' : 'Idle');
+  const label = status === 'working' ? '工作中' : (status === 'waiting' ? '等待中' : '空闲');
     const sourceLabel = SOURCE_LABELS[source] || source || 'Agent';
     return {
       status,
       label,
-      title: event.title || (status === 'idle' ? `${sourceLabel} is idle` : `${sourceLabel} · ${label}`),
-      message: event.message || (status === 'idle' ? 'Connected with no active task.' : ''),
+      title: event.title || (status === 'idle' ? `${sourceLabel} 当前空闲` : `${sourceLabel} ${label}`),
+      message: event.message || (status === 'idle' ? '已连接，当前没有活动任务。' : ''),
       taskId: event.taskId || '',
       updatedAt: this.now().toISOString()
     };
@@ -60,7 +60,7 @@ class AgentTaskTracker {
       ...this.makePublic(record.source, status, state),
       ...state,
       status,
-      label: state.label || (status === 'working' ? 'Working' : (status === 'waiting' ? 'Waiting' : 'Idle'))
+      label: state.label || (status === 'working' ? '工作中' : (status === 'waiting' ? '等待中' : '空闲'))
     };
     return { ...record.public };
   }
@@ -87,7 +87,7 @@ class AgentTaskTracker {
     if (hookName === 'SubagentStop') {
       record.subagentCount = Math.max(0, record.subagentCount - 1);
       const status = record.parentActive || record.subagentCount > 0 ? 'working' : 'idle';
-      record.public = this.makePublic(source, status, status === 'working' ? { ...event, title: `${SOURCE_LABELS[source] || source} continues working` } : event);
+      record.public = this.makePublic(source, status, status === 'working' ? { ...event, title: `${SOURCE_LABELS[source] || source} 继续工作` } : event);
       return { ...record.public };
     }
 
@@ -127,8 +127,8 @@ class AgentTaskTracker {
       record.parentActive = true;
       record.public = this.makePublic(source, 'working', {
         ...decision.event,
-        title: `${SOURCE_LABELS[source] || source} continues working`,
-        message: 'Decision received. The task is continuing.'
+      title: `${SOURCE_LABELS[source] || source} 继续工作`,
+      message: '已收到你的决定，任务继续执行。'
       });
     } else {
       record.parentActive = false;

@@ -71,8 +71,8 @@ class AgentIslandServer extends EventEmitter {
       ttl: 0,
       systemNotify: input.systemNotify ?? true,
       actions: input.actions?.length ? input.actions : [
-            { id: 'allow', label: 'Allow', style: 'primary' },
-            { id: 'deny', label: 'Deny', style: 'danger' }
+            { id: 'allow', label: '允许', style: 'primary' },
+            { id: 'deny', label: '拒绝', style: 'danger' }
       ]
     });
 
@@ -138,7 +138,7 @@ class AgentIslandServer extends EventEmitter {
   getState() {
     return {
       name: 'Agent Island',
-      version: '0.10.3',
+      version: '0.11.1',
       listening: Boolean(this.httpServer),
       address: `http://${this.host}:${this.port}`,
       activeAgents: this.activeAgents,
@@ -162,7 +162,7 @@ class AgentIslandServer extends EventEmitter {
       sendJson(response, 200, {
         hookSpecificOutput: {
           hookEventName: 'PermissionRequest',
-        decision: { behavior: 'deny', message: 'The Agent Island decision timed out.', interrupt: false }
+        decision: { behavior: 'deny', message: 'Agent Island 等待决策超时。', interrupt: false }
         }
       });
       return;
@@ -181,7 +181,7 @@ class AgentIslandServer extends EventEmitter {
     sendJson(response, 200, {
       hookSpecificOutput: {
         hookEventName: 'PermissionRequest',
-        decision: { behavior: 'deny', message: 'The user denied this action in Agent Island.', interrupt: false }
+        decision: { behavior: 'deny', message: '用户在 Agent Island 中拒绝了这次操作。', interrupt: false }
       }
     });
   }

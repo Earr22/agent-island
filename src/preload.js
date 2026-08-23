@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('agentIsland', {
   respond: (id, choice) => ipcRenderer.invoke('island:respond', { id, choice }),
   hide: () => ipcRenderer.invoke('island:hide'),
   getState: () => ipcRenderer.invoke('island:get-state'),
+  getUsage: () => ipcRenderer.invoke('island:get-usage'),
   getWorkItems: () => ipcRenderer.invoke('island:get-work-items'),
   activateTarget: (target) => ipcRenderer.invoke('island:activate-target', target),
   deleteHistoryEvent: (id) => ipcRenderer.invoke('island:delete-history-event', id),
@@ -37,6 +38,11 @@ contextBridge.exposeInMainWorld('agentIsland', {
     const listener = (_event, payload) => callback(payload);
     ipcRenderer.on('island:agents', listener);
     return () => ipcRenderer.removeListener('island:agents', listener);
+  },
+  onUsage: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on('island:usage', listener);
+    return () => ipcRenderer.removeListener('island:usage', listener);
   },
   onClipboardChanged: (callback) => {
     const listener = (_event, payload) => callback(payload);

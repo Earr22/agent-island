@@ -9,7 +9,7 @@ function tracker() {
 test('a detected process is connected but idle', () => {
   const [agent] = tracker().mergeAgents([{ id: 'codex', label: 'Codex' }]);
   assert.equal(agent.taskState.status, 'idle');
-  assert.equal(agent.taskState.label, 'Idle');
+  assert.equal(agent.taskState.label, '空闲');
 });
 
 test('a real prompt starts work and Stop returns to idle', () => {

@@ -184,14 +184,14 @@ class ClipboardHistory extends EventEmitter {
 
   restore(id) {
     const index = this.items.findIndex((item) => item.id === String(id));
-    if (index < 0) return { ok: false, error: 'Clipboard item not found.' };
+    if (index < 0) return { ok: false, error: '剪贴板记录不存在。' };
     const [item] = this.items.splice(index, 1);
     try {
       if (item.type === 'text') this.clipboard.writeText(item.text);
       else this.clipboard.writeImage(this.nativeImage.createFromBuffer(item.png));
     } catch {
       this.items.splice(index, 0, item);
-      return { ok: false, error: 'Could not write to the system clipboard.' };
+      return { ok: false, error: '无法写入系统剪贴板。' };
     }
     item.createdAt = this.now().toISOString();
     this.items.unshift(item);

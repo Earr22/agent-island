@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { CodexSessionMonitor, eventFromLine, sessionIdFromPath } = require('../src/codex-session-monitor');
+const { CodexSessionMonitor, eventFromLine, usageFromRecord, sessionIdFromPath } = require('../src/codex-session-monitor');
 
 function line(timestamp, type, payload = {}) {
   return JSON.stringify({ timestamp, type: 'event_msg', payload: { type, ...payload } });
@@ -17,6 +17,49 @@ test('parses Codex Desktop lifecycle records without reading reasoning content',
   });
   assert.equal(eventFromLine(JSON.stringify({ type: 'response_item', payload: { type: 'reasoning' } })), null);
   assert.equal(sessionIdFromPath('rollout-2026-07-16T12-00-00-019f6936-70d5-7642-98ca-d733cd86706b.jsonl'), '019f6936-70d5-7642-98ca-d733cd86706b');
+});
+
+test('normalizes real Codex account quota and context usage', () => {
+  const usage = usageFromRecord({
+    timestamp: '2026-08-24T01:00:00.000Z',
+    type: 'event_msg',
+    payload: {
+      type: 'token_count',
+      info: { last_token_usage: { total_tokens: 129200 }, model_context_window: 258400 },
+      rate_limits: {
+        primary: { used_percent: 9, window_minutes: 10080, resets_at: 1787880622 },
+        plan_type: 'plus'
+      }
+    }
+  });
+  assert.equal(usage.usedPercent, 9);
+  assert.equal(usage.remainingPercent, 91);
+  assert.equal(usage.contextUsedPercent, 50);
+  assert.equal(usage.windowMinutes, 10080);
+  assert.equal(usage.planType, 'plus');
+});
+
+test('emits quota updates from the live Codex session stream', async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-island-codex-usage-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const day = path.join(root, '2026', '08', '24');
+  fs.mkdirSync(day, { recursive: true });
+  const filePath = path.join(day, 'rollout-2026-08-24T01-00-00-019f6936-70d5-7642-98ca-d733cd86706b.jsonl');
+  fs.writeFileSync(filePath, JSON.stringify({
+    timestamp: '2026-08-24T01:00:00.000Z',
+    type: 'event_msg',
+    payload: {
+      type: 'token_count',
+      info: { last_token_usage: { total_tokens: 25840 }, model_context_window: 258400 },
+      rate_limits: { primary: { used_percent: 12, window_minutes: 10080, resets_at: 1787880622 }, plan_type: 'plus' }
+    }
+  }) + '\n');
+  const monitor = new CodexSessionMonitor({ sessionsRoot: root, discoveryMs: 0 });
+  let latest;
+  monitor.on('usage', (usage) => { latest = usage; });
+  await monitor.poll();
+  assert.equal(latest.remainingPercent, 88);
+  assert.equal(latest.contextUsedPercent, 10);
 });
 
 test('reports a real desktop turn as working and returns to idle on task_complete', async (t) => {

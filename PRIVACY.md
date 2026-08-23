@@ -10,7 +10,9 @@ Clipboard history is enabled by default with a first-run notice and an immediate
 
 ### Codex sessions
 
-When a local Codex session directory is available, Agent Island reads lifecycle records needed to determine whether a task is working or idle. It also reads the current prompt text so the task can be identified in the visible UI. Prompt text is visible by default. Agent Island does not read reasoning content and does not upload session data.
+When a local Codex session directory is available, Agent Island reads lifecycle records needed to determine whether a task is working or idle. It also reads the current prompt text so the task can be identified in the visible UI. Prompt text is visible by default.
+
+For the quota display, Agent Island reads local Codex `token_count` records containing rate-limit usage, remaining percentage, reset time, plan type, context-window size, and the latest total-token count. These fields are displayed locally and held in process memory. Agent Island does not read reasoning content and does not upload session or quota data.
 
 ### Windows notifications
 
