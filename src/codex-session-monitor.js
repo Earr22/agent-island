@@ -32,6 +32,7 @@ function usageFromRecord(record = {}) {
   const info = record.payload?.info || {};
   const limits = record.payload?.rate_limits || {};
   const primary = limits.primary || null;
+  const credits = limits.credits || null;
   const usedPercent = primary ? finiteNumber(primary.used_percent) : null;
   const contextWindow = finiteNumber(info.model_context_window);
   const lastTokens = finiteNumber(info.last_token_usage?.total_tokens);
@@ -48,6 +49,9 @@ function usageFromRecord(record = {}) {
     windowMinutes: finiteNumber(primary?.window_minutes),
     resetsAt: finiteNumber(primary?.resets_at),
     planType: String(limits.plan_type || ''),
+    creditBalance: finiteNumber(credits?.balance),
+    hasCredits: Boolean(credits?.has_credits),
+    unlimitedCredits: Boolean(credits?.unlimited),
     contextUsedPercent,
     contextWindow,
     lastTokens,
@@ -126,8 +130,8 @@ async function readRange(filePath, start, length) {
 class CodexSessionMonitor extends EventEmitter {
   constructor({
     sessionsRoot,
-    pollMs = 15000,
-    discoveryMs = 30000,
+    pollMs = 2500,
+    discoveryMs = 10000,
     noWatchPollMs = 2500,
     watchDebounceMs = 350,
     maxFiles = 8,
@@ -368,9 +372,9 @@ class CodexSessionMonitor extends EventEmitter {
     this.watchTimer.unref?.();
   }
 
-  startFallbackTimer(intervalMs) {
+  startFallbackTimer(intervalMs, { forceDiscover = false } = {}) {
     clearInterval(this.timer);
-    this.timer = setInterval(() => this.poll({ forceDiscover: true }), intervalMs);
+    this.timer = setInterval(() => this.poll({ forceDiscover }), intervalMs);
     this.timer.unref?.();
   }
 
@@ -385,15 +389,18 @@ class CodexSessionMonitor extends EventEmitter {
         this.emit('error', error);
         this.watcher?.close();
         this.watcher = null;
-        this.startFallbackTimer(this.noWatchPollMs);
+        this.startFallbackTimer(this.noWatchPollMs, { forceDiscover: true });
       });
       this.watcher.unref?.();
+      // Windows can occasionally drop recursive fs.watch events. Recheck the
+      // handful of known session files frequently, while keeping the more
+      // expensive recursive discovery on its separate, slower schedule.
       this.startFallbackTimer(this.pollMs);
       return true;
     } catch (error) {
       this.emit('error', error);
       this.watcher = null;
-      this.startFallbackTimer(this.noWatchPollMs);
+      this.startFallbackTimer(this.noWatchPollMs, { forceDiscover: true });
       return false;
     }
   }

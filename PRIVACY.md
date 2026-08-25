@@ -12,7 +12,7 @@ Clipboard history is enabled by default with a first-run notice and an immediate
 
 When a local Codex session directory is available, Agent Island reads lifecycle records needed to determine whether a task is working or idle. It also reads the current prompt text so the task can be identified in the visible UI. Prompt text is visible by default.
 
-For the quota display, Agent Island reads local Codex `token_count` records containing rate-limit usage, remaining percentage, reset time, plan type, context-window size, and the latest total-token count. These fields are displayed locally and held in process memory. Agent Island does not read reasoning content and does not upload session or quota data.
+For the quota display, Agent Island reads local Codex `token_count` records containing rate-limit usage, remaining percentage, reset time, optional Credits balance and flags, plan type, context-window size, and the latest total-token count. These fields are displayed locally and held in process memory. Agent Island does not read reasoning content and does not upload session or quota data.
 
 ### Windows notifications
 
@@ -24,7 +24,7 @@ Todos and elapsed timer state are stored in `%APPDATA%\agent-island\todos.json`.
 
 ### Local API
 
-The HTTP API binds only to `127.0.0.1:17321`; it is not exposed to the LAN. Event and decision history is held in process memory. Browser cross-origin access is disabled. Other programs running under your local Windows account may still be able to call a loopback service, so only run software you trust.
+The HTTP API binds only to `127.0.0.1:17321`; it is not exposed to the LAN. Event and decision history is held in process memory. The `/v1/state` response includes the latest agent quota snapshot, including an optional Credits balance when Codex supplies it. Browser cross-origin access is disabled. Other programs running under your local Windows account may still be able to call a loopback service, so only run software you trust.
 
 ## User-triggered outbound actions
 

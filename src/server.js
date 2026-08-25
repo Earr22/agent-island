@@ -53,6 +53,7 @@ class AgentIslandServer extends EventEmitter {
     this.history = [];
     this.decisions = new Map();
     this.activeAgents = [];
+    this.agentUsage = [];
     this.windowsNotificationState = null;
   }
 
@@ -138,10 +139,11 @@ class AgentIslandServer extends EventEmitter {
   getState() {
     return {
       name: 'Agent Island',
-      version: '0.11.1',
+      version: '0.11.2',
       listening: Boolean(this.httpServer),
       address: `http://${this.host}:${this.port}`,
       activeAgents: this.activeAgents,
+      agentUsage: this.agentUsage,
       windowsNotifications: this.windowsNotificationState,
       pendingDecisions: [...this.decisions.values()].filter((item) => item.status === 'pending').map((item) => this.publicDecision(item)),
       latestEvent: this.history[0] || null

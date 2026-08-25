@@ -2,7 +2,7 @@
 
 **面向 Codex 与其他 AI 编程 Agent 的 Windows 指挥中心。**
 
-[English](README.md) · [下载 v0.11.1](https://github.com/Earr22/agent-island/releases/latest) · [反馈问题](https://github.com/Earr22/agent-island/issues/new/choose) · [参与讨论](https://github.com/Earr22/agent-island/discussions)
+[English](README.md) · [下载 v0.11.2](https://github.com/Earr22/agent-island/releases/latest) · [反馈问题](https://github.com/Earr22/agent-island/issues/new/choose) · [参与讨论](https://github.com/Earr22/agent-island/discussions)
 
 ![Agent Island 展示 Agent 工作状态、待办与剪贴板历史](docs/images/hero.png)
 
@@ -14,6 +14,7 @@ Agent Island 是一个本地优先的 Windows 动态岛：它把 Codex、Claude 
 
 - Codex Desktop 依据本机会话生命周期显示真实工作/空闲状态。
 - 悬停展开与二次展开实时显示 Codex 账户额度、剩余比例与重置时间；不支持读取额度的 Agent 会明确标为暂无数据。
+- 已知 Codex 会话约每 2.5 秒刷新一次；提示中可显示 Credits 余额与更新时间，最新额度快照也可从本地 `/v1/state` 获取。
 - 二次展开先显示固定尺寸外壳，仅渲染当前页，并在空闲时预取工作、待办和剪贴板数据，减少点击卡顿。
 - Claude Code 权限 Hook 可在岛上直接允许或拒绝，并将结果返回 Claude Code。
 - 支持顶部、底部、左右侧和自由位置，靠边吸附并自动隐藏。
@@ -24,14 +25,15 @@ Agent Island 是一个本地优先的 Windows 动态岛：它把 Codex、Claude 
 
 ## 下载与安全提示
 
-从 [Releases](https://github.com/Earr22/agent-island/releases/latest) 下载 `Agent-Island-Portable-0.11.1-x64.exe` 和 `.sha256` 文件。
+从 [Releases](https://github.com/Earr22/agent-island/releases/latest) 下载 `Agent-Island-Portable-0.11.2-x64.exe` 和 `.sha256` 文件。
 
 当前 Release 构建尚未进行代码签名，因此 Windows SmartScreen 可能提示“未知发布者”。请先核对 SHA-256，或按英文 README 的步骤从源码构建。
 
 ## 隐私默认值
 
 - 剪贴板历史默认开启，但首次启动会明确说明并允许立即关闭；只在进程内存保留最近 30 条，退出即清除。
-- Codex 提示正文默认显示，用于识别正在执行的任务；同时在本地读取额度、重置时间、方案类型和上下文窗口占用字段，但不读取推理内容。
+- Codex 提示正文默认显示，用于识别正在执行的任务；同时在本地读取额度、重置时间、可选 Credits 余额、方案类型和上下文窗口占用字段，但不读取推理内容。
+- 最新额度快照会包含在仅限回环地址的 `/v1/state` 响应中；同一 Windows 用户下的本地程序仍可能访问该接口。
 - Windows 通知捕获默认关闭；捕获后从通知中心删除必须单独开启。
 - 本地 API 只监听 `127.0.0.1:17321`，并关闭浏览器跨域访问。
 - 待办写入 `%APPDATA%\agent-island\todos.json`。

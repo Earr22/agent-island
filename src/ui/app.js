@@ -170,6 +170,14 @@ function usageResetLabel(resetsAt) {
   return `${Math.ceil(hours / 24)} 天后重置`;
 }
 
+function usageUpdatedLabel(updatedAt) {
+  const updated = new Date(updatedAt);
+  if (!Number.isFinite(updated.getTime())) return '';
+  return new Intl.DateTimeFormat('zh-CN', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+  }).format(updated);
+}
+
 function makeUsageChip(usage, { detailed = false } = {}) {
   const chip = document.createElement('span');
   chip.className = `usage-chip ${usage.available ? 'is-available' : 'is-unavailable'} ${usage.agentId || ''}`.trim();
@@ -182,7 +190,9 @@ function makeUsageChip(usage, { detailed = false } = {}) {
       ? `剩余 ${remaining}%${usageResetLabel(usage.resetsAt) ? ` · ${usageResetLabel(usage.resetsAt)}` : ''}`
       : `${remaining}%`;
     chip.style.setProperty('--usage-remaining', `${remaining}%`);
-    chip.title = `${name.textContent} 额度剩余 ${remaining}%${Number.isFinite(usage.contextUsedPercent) ? ` · 当前上下文已用 ${Math.round(usage.contextUsedPercent)}%` : ''}`;
+    const updatedLabel = usageUpdatedLabel(usage.updatedAt);
+    const creditLabel = Number.isFinite(usage.creditBalance) ? ` · Credits ${usage.creditBalance}` : '';
+    chip.title = `${name.textContent} 额度剩余 ${remaining}%${Number.isFinite(usage.contextUsedPercent) ? ` · 当前上下文已用 ${Math.round(usage.contextUsedPercent)}%` : ''}${creditLabel}${updatedLabel ? ` · 更新于 ${updatedLabel}` : ''}`;
   } else {
     value.textContent = detailed ? '暂无额度数据' : '—';
     chip.title = usage.reason || '该 Agent 未提供可读取的账户额度数据';

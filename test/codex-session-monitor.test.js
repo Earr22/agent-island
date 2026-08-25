@@ -28,6 +28,7 @@ test('normalizes real Codex account quota and context usage', () => {
       info: { last_token_usage: { total_tokens: 129200 }, model_context_window: 258400 },
       rate_limits: {
         primary: { used_percent: 9, window_minutes: 10080, resets_at: 1787880622 },
+        credits: { has_credits: true, unlimited: false, balance: '1080.6385150000' },
         plan_type: 'plus'
       }
     }
@@ -37,6 +38,9 @@ test('normalizes real Codex account quota and context usage', () => {
   assert.equal(usage.contextUsedPercent, 50);
   assert.equal(usage.windowMinutes, 10080);
   assert.equal(usage.planType, 'plus');
+  assert.equal(usage.creditBalance, 1080.638515);
+  assert.equal(usage.hasCredits, true);
+  assert.equal(usage.unlimitedCredits, false);
 });
 
 test('emits quota updates from the live Codex session stream', async (t) => {
@@ -60,6 +64,20 @@ test('emits quota updates from the live Codex session stream', async (t) => {
   await monitor.poll();
   assert.equal(latest.remainingPercent, 88);
   assert.equal(latest.contextUsedPercent, 10);
+
+  fs.appendFileSync(filePath, JSON.stringify({
+    timestamp: '2026-08-24T01:00:02.000Z',
+    type: 'event_msg',
+    payload: {
+      type: 'token_count',
+      info: { last_token_usage: { total_tokens: 51680 }, model_context_window: 258400 },
+      rate_limits: { primary: { used_percent: 19, window_minutes: 10080, resets_at: 1787880622 }, plan_type: 'plus' }
+    }
+  }) + '\n');
+  await monitor.poll();
+  assert.equal(latest.remainingPercent, 81);
+  assert.equal(latest.contextUsedPercent, 20);
+  assert.equal(latest.updatedAt, '2026-08-24T01:00:02.000Z');
 });
 
 test('reports a real desktop turn as working and returns to idle on task_complete', async (t) => {

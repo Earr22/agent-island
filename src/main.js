@@ -155,7 +155,9 @@ function getAgentUsageSnapshot() {
 }
 
 function sendAgentUsage() {
-  mainWindow?.webContents.send('island:usage', getAgentUsageSnapshot());
+  const snapshot = getAgentUsageSnapshot();
+  if (apiServer) apiServer.agentUsage = snapshot;
+  mainWindow?.webContents.send('island:usage', snapshot);
 }
 
 function positionIsland() {
