@@ -27,7 +27,8 @@ test('normalizes real Codex account quota and context usage', () => {
       type: 'token_count',
       info: { last_token_usage: { total_tokens: 129200 }, model_context_window: 258400 },
       rate_limits: {
-        primary: { used_percent: 9, window_minutes: 10080, resets_at: 1787880622 },
+        primary: { used_percent: 9, window_minutes: 300, resets_at: 1787880622 },
+        secondary: { used_percent: 21, window_minutes: 10080, resets_at: 1788272070 },
         credits: { has_credits: true, unlimited: false, balance: '1080.6385150000' },
         plan_type: 'plus'
       }
@@ -36,7 +37,11 @@ test('normalizes real Codex account quota and context usage', () => {
   assert.equal(usage.usedPercent, 9);
   assert.equal(usage.remainingPercent, 91);
   assert.equal(usage.contextUsedPercent, 50);
-  assert.equal(usage.windowMinutes, 10080);
+  assert.equal(usage.windowMinutes, 300);
+  assert.deepEqual(usage.windows, [
+    { id: 'primary', usedPercent: 9, remainingPercent: 91, windowMinutes: 300, resetsAt: 1787880622 },
+    { id: 'secondary', usedPercent: 21, remainingPercent: 79, windowMinutes: 10080, resetsAt: 1788272070 }
+  ]);
   assert.equal(usage.planType, 'plus');
   assert.equal(usage.creditBalance, 1080.638515);
   assert.equal(usage.hasCredits, true);
@@ -55,7 +60,11 @@ test('emits quota updates from the live Codex session stream', async (t) => {
     payload: {
       type: 'token_count',
       info: { last_token_usage: { total_tokens: 25840 }, model_context_window: 258400 },
-      rate_limits: { primary: { used_percent: 12, window_minutes: 10080, resets_at: 1787880622 }, plan_type: 'plus' }
+      rate_limits: {
+        primary: { used_percent: 12, window_minutes: 300, resets_at: 1787880622 },
+        secondary: { used_percent: 7, window_minutes: 10080, resets_at: 1788272070 },
+        plan_type: 'plus'
+      }
     }
   }) + '\n');
   const monitor = new CodexSessionMonitor({ sessionsRoot: root, discoveryMs: 0 });
@@ -63,6 +72,7 @@ test('emits quota updates from the live Codex session stream', async (t) => {
   monitor.on('usage', (usage) => { latest = usage; });
   await monitor.poll();
   assert.equal(latest.remainingPercent, 88);
+  assert.equal(latest.windows[1].remainingPercent, 93);
   assert.equal(latest.contextUsedPercent, 10);
 
   fs.appendFileSync(filePath, JSON.stringify({
@@ -71,11 +81,16 @@ test('emits quota updates from the live Codex session stream', async (t) => {
     payload: {
       type: 'token_count',
       info: { last_token_usage: { total_tokens: 51680 }, model_context_window: 258400 },
-      rate_limits: { primary: { used_percent: 19, window_minutes: 10080, resets_at: 1787880622 }, plan_type: 'plus' }
+      rate_limits: {
+        primary: { used_percent: 19, window_minutes: 300, resets_at: 1787880622 },
+        secondary: { used_percent: 8, window_minutes: 10080, resets_at: 1788272070 },
+        plan_type: 'plus'
+      }
     }
   }) + '\n');
   await monitor.poll();
   assert.equal(latest.remainingPercent, 81);
+  assert.equal(latest.windows[1].remainingPercent, 92);
   assert.equal(latest.contextUsedPercent, 20);
   assert.equal(latest.updatedAt, '2026-08-24T01:00:02.000Z');
 });

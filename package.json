@@ -1,6 +1,6 @@
 {
   "name": "agent-island",
-  "version": "0.11.2",
+  "version": "0.11.3",
   "description": "A Windows Dynamic Island for AI agent status, decisions, and notifications.",
   "main": "src/main.js",
   "author": "Agent Island contributors",

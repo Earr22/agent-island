@@ -1020,7 +1020,11 @@ async function runSmokeCapture() {
     agentUsageById.set('codex', {
       agentId: 'codex', label: 'Codex', available: true,
       usedPercent: 23, remainingPercent: 77, windowMinutes: 10080,
-      resetsAt: Math.floor(Date.now() / 1000) + 2 * 86400,
+      windows: [
+        { id: 'primary', usedPercent: 23, remainingPercent: 77, windowMinutes: 300, resetsAt: Math.floor(Date.now() / 1000) + 3 * 3600 },
+        { id: 'secondary', usedPercent: 37, remainingPercent: 63, windowMinutes: 10080, resetsAt: Math.floor(Date.now() / 1000) + 2 * 86400 }
+      ],
+      resetsAt: Math.floor(Date.now() / 1000) + 3 * 3600,
       planType: 'plus', contextUsedPercent: 42,
       updatedAt: new Date().toISOString()
     });

@@ -32,7 +32,7 @@ test('exposes the current agent quota in the live state endpoint', async () => {
   await withServer(async (server, baseUrl) => {
     server.agentUsage = [{ agentId: 'codex', available: true, remainingPercent: 81, updatedAt: '2026-08-24T01:00:02.000Z' }];
     const state = await fetch(`${baseUrl}/v1/state`).then((result) => result.json());
-    assert.equal(state.version, '0.11.2');
+    assert.equal(state.version, '0.11.3');
     assert.equal(state.agentUsage[0].remainingPercent, 81);
     assert.equal(state.agentUsage[0].updatedAt, '2026-08-24T01:00:02.000Z');
   });

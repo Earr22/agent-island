@@ -139,7 +139,7 @@ class AgentIslandServer extends EventEmitter {
   getState() {
     return {
       name: 'Agent Island',
-      version: '0.11.2',
+      version: '0.11.3',
       listening: Boolean(this.httpServer),
       address: `http://${this.host}:${this.port}`,
       activeAgents: this.activeAgents,

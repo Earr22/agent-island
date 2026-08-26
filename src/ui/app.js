@@ -178,6 +178,30 @@ function usageUpdatedLabel(updatedAt) {
   }).format(updated);
 }
 
+function usageWindowLabel(window) {
+  const minutes = Number(window?.windowMinutes);
+  if (minutes === 300) return '5h';
+  if (minutes === 10080) return '周';
+  if (Number.isFinite(minutes) && minutes > 0 && minutes % 1440 === 0) return `${minutes / 1440}天`;
+  if (Number.isFinite(minutes) && minutes > 0 && minutes % 60 === 0) return `${minutes / 60}h`;
+  return window?.id === 'secondary' ? '额度2' : '额度';
+}
+
+function usageWindows(usage) {
+  const windows = Array.isArray(usage.windows)
+    ? usage.windows.filter((window) => Number.isFinite(window?.remainingPercent))
+    : [];
+  if (windows.length) return windows.slice().sort((a, b) => Number(a.windowMinutes || Infinity) - Number(b.windowMinutes || Infinity));
+  if (!Number.isFinite(usage.remainingPercent)) return [];
+  return [{
+    id: 'primary',
+    remainingPercent: usage.remainingPercent,
+    usedPercent: usage.usedPercent,
+    windowMinutes: usage.windowMinutes,
+    resetsAt: usage.resetsAt
+  }];
+}
+
 function makeUsageChip(usage, { detailed = false } = {}) {
   const chip = document.createElement('span');
   chip.className = `usage-chip ${usage.available ? 'is-available' : 'is-unavailable'} ${usage.agentId || ''}`.trim();
@@ -185,14 +209,24 @@ function makeUsageChip(usage, { detailed = false } = {}) {
   name.textContent = usage.label || usage.agentId || 'Agent';
   const value = document.createElement('span');
   if (usage.available) {
-    const remaining = Math.round(usage.remainingPercent);
-    value.textContent = detailed
-      ? `剩余 ${remaining}%${usageResetLabel(usage.resetsAt) ? ` · ${usageResetLabel(usage.resetsAt)}` : ''}`
-      : `${remaining}%`;
+    const windows = usageWindows(usage);
+    const remaining = Math.round(Math.min(...windows.map((window) => window.remainingPercent)));
+    if (windows.length > 1) {
+      value.textContent = windows.map((window) => `${usageWindowLabel(window)} ${Math.round(window.remainingPercent)}%`).join(' · ');
+    } else {
+      const window = windows[0];
+      value.textContent = detailed
+        ? `剩余 ${remaining}%${usageResetLabel(window?.resetsAt) ? ` · ${usageResetLabel(window.resetsAt)}` : ''}`
+        : `${remaining}%`;
+    }
     chip.style.setProperty('--usage-remaining', `${remaining}%`);
     const updatedLabel = usageUpdatedLabel(usage.updatedAt);
     const creditLabel = Number.isFinite(usage.creditBalance) ? ` · Credits ${usage.creditBalance}` : '';
-    chip.title = `${name.textContent} 额度剩余 ${remaining}%${Number.isFinite(usage.contextUsedPercent) ? ` · 当前上下文已用 ${Math.round(usage.contextUsedPercent)}%` : ''}${creditLabel}${updatedLabel ? ` · 更新于 ${updatedLabel}` : ''}`;
+    const quotaTitle = windows.map((window) => {
+      const reset = usageResetLabel(window.resetsAt);
+      return `${usageWindowLabel(window)} 剩余 ${Math.round(window.remainingPercent)}%${reset ? `（${reset}）` : ''}`;
+    }).join(' · ');
+    chip.title = `${name.textContent} ${quotaTitle}${Number.isFinite(usage.contextUsedPercent) ? ` · 当前上下文已用 ${Math.round(usage.contextUsedPercent)}%` : ''}${creditLabel}${updatedLabel ? ` · 更新于 ${updatedLabel}` : ''}`;
   } else {
     value.textContent = detailed ? '暂无额度数据' : '—';
     chip.title = usage.reason || '该 Agent 未提供可读取的账户额度数据';

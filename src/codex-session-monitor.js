@@ -27,13 +27,32 @@ function finiteNumber(value, fallback = null) {
   return Number.isFinite(number) ? number : fallback;
 }
 
+function normalizeQuotaWindow(limit, id) {
+  const usedPercent = finiteNumber(limit?.used_percent);
+  if (usedPercent === null) return null;
+  const clampedUsed = Math.max(0, Math.min(100, usedPercent));
+  return {
+    id,
+    usedPercent: clampedUsed,
+    remainingPercent: Math.max(0, Math.min(100, 100 - clampedUsed)),
+    windowMinutes: finiteNumber(limit?.window_minutes),
+    resetsAt: finiteNumber(limit?.resets_at)
+  };
+}
+
 function usageFromRecord(record = {}) {
   if (record?.type !== 'event_msg' || record.payload?.type !== 'token_count') return null;
   const info = record.payload?.info || {};
   const limits = record.payload?.rate_limits || {};
   const primary = limits.primary || null;
+  const secondary = limits.secondary || null;
   const credits = limits.credits || null;
-  const usedPercent = primary ? finiteNumber(primary.used_percent) : null;
+  const windows = [
+    normalizeQuotaWindow(primary, 'primary'),
+    normalizeQuotaWindow(secondary, 'secondary')
+  ].filter(Boolean);
+  const currentWindow = windows[0] || null;
+  const usedPercent = currentWindow?.usedPercent ?? null;
   const contextWindow = finiteNumber(info.model_context_window);
   const lastTokens = finiteNumber(info.last_token_usage?.total_tokens);
   const contextUsedPercent = contextWindow && lastTokens !== null
@@ -46,8 +65,9 @@ function usageFromRecord(record = {}) {
     available: usedPercent !== null,
     usedPercent: usedPercent === null ? null : Math.max(0, Math.min(100, usedPercent)),
     remainingPercent: usedPercent === null ? null : Math.max(0, Math.min(100, 100 - usedPercent)),
-    windowMinutes: finiteNumber(primary?.window_minutes),
-    resetsAt: finiteNumber(primary?.resets_at),
+    windowMinutes: currentWindow?.windowMinutes ?? null,
+    resetsAt: currentWindow?.resetsAt ?? null,
+    windows,
     planType: String(limits.plan_type || ''),
     creditBalance: finiteNumber(credits?.balance),
     hasCredits: Boolean(credits?.has_credits),
