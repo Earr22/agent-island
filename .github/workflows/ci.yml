@@ -27,6 +27,16 @@ jobs:
           $report = Get-Content artifacts/ci-test/native-self-test.json -Raw | ConvertFrom-Json
           if (-not $report.ok) { throw 'Native self-test report failed.' }
           Write-Output "Native checks passed: $($report.checks)"
+      - name: Isolated permission-card UI regression
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath artifacts/ci-native/AgentIsland.Native.exe -ArgumentList '--render-showcase', '--output=artifacts/ci-showcase' -PassThru -Wait -WindowStyle Hidden
+          if ($process.ExitCode -ne 0) { throw 'Showcase UI regression failed.' }
+          $report = Get-Content artifacts/ci-showcase/showcase-manifest.json -Raw | ConvertFrom-Json
+          if (-not $report.decisionCardRendered -or -not $report.decisionAnswered -or $report.frameCount -ne 180) { throw 'Permission-card regression report failed.' }
+          foreach ($field in @('desktopCaptured', 'sessionMonitoring', 'clipboardRead', 'windowsNotificationsRead', 'httpListenerStarted')) {
+            if ($report.$field) { throw "Showcase isolation failed: $field" }
+          }
   legacy:
     runs-on: windows-latest
     steps:

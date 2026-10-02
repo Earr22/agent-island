@@ -1,6 +1,8 @@
-# Agent Island 原生版 v0.12.0
+# Agent Island 原生版 v0.12.1
 
 Windows 原生 WPF/.NET 8 实现。正式发布包不包含 Electron 或 Chromium；旧版源码保留供参考与回退。
+
+v0.12.1 修复授权卡片内容重复挂载导致的界面异常，并加入隔离的公开演示渲染工具。
 
 ## 下载与运行
 

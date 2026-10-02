@@ -17,8 +17,9 @@ static class SelfTest
         var defaults=new Settings();Check(!defaults.CaptureWindowsNotifications&&!defaults.DismissCapturedNotifications,"notification privacy defaults");
         using(var diagnosticBackend=new Backend(Path.Combine(folder,"diagnostic"),new(){Port=0,ClipboardHistory=false}))
         {
-            diagnosticBackend.Start(true);
+            diagnosticBackend.Start(true,startApi:false);
             Check(diagnosticBackend.Agents.Length==1&&diagnosticBackend.Agents[0].ProcessIds.Length==0&&diagnosticBackend.Usage[0].Windows[0].RemainingPercent==77,"isolated diagnostic fixtures");
+            Check(diagnosticBackend.Api.Port==0,"showcase fixture does not open HTTP listener");
         }
         var todos=new TodoStore(Path.Combine(folder,"todos.json"));
         foreach(var existing in todos.Items)todos.Edit(existing.Id,"delete");
@@ -46,7 +47,7 @@ static class SelfTest
         backend.Api.Start(0);
         using var http=new HttpClient{BaseAddress=new Uri($"http://127.0.0.1:{backend.Api.Port}"),Timeout=TimeSpan.FromSeconds(5)};
         async Task<JsonNode> Post(string route,JsonNode p) { using var response=await http.PostAsync(route,new StringContent(p.ToJsonString(),Encoding.UTF8,"application/json"));return JsonNode.Parse(await response.Content.ReadAsStringAsync())!; }
-        var health=JsonNode.Parse(await http.GetStringAsync("/health"))!;Check(health.Text("version")=="0.12.0-native","api state");
+        var health=JsonNode.Parse(await http.GetStringAsync("/health"))!;Check(health.Text("version")=="0.12.1-native","api state");
         using(var crossOrigin=new HttpRequestMessage(HttpMethod.Post,"/v1/events"))
         {
             crossOrigin.Headers.Add("Origin","https://example.com");crossOrigin.Content=new StringContent("{}",Encoding.UTF8,"application/json");

@@ -17,7 +17,7 @@ using Forms = System.Windows.Forms;
 
 namespace AgentIsland;
 
-sealed class IslandWindow : Window
+sealed partial class IslandWindow : Window
 {
     const double CanvasWidth = 464, CanvasHeight = 360;
     readonly Backend backend;
@@ -67,9 +67,11 @@ sealed class IslandWindow : Window
     public string Mode => mode;
     public int Page => page;
     public Rect VisibleRect => targetRect;
-    public IslandWindow(Backend backend, bool diagnostic)
+    public IslandWindow(Backend backend, bool diagnostic, bool showcase = false)
     {
         this.backend = backend; this.diagnostic = diagnostic;
+        this.showcase = showcase;
+        if(showcase) Opacity=0; // Render our visual tree only, never the user's desktop.
         Width = CanvasWidth; Height = CanvasHeight; WindowStyle = WindowStyle.None;
         AllowsTransparency = true; Background = Brushes.Transparent; ResizeMode = ResizeMode.NoResize;
         ShowInTaskbar = false; Topmost = true; ShowActivated = false;
@@ -118,7 +120,8 @@ sealed class IslandWindow : Window
             preparing=true;ChangeMode("hover",false);ChangeMode("workspace",false);SwitchPage(1,false);SwitchPage(2,false);SwitchPage(0,false);ChangeMode("compact",false);preparing=false;UpdatePet();
             UpdateLayout();
             foreach(var scroller in scrolls){scroller.ApplyTemplate();if(scroller.Template.FindName("PART_VerticalScrollBar",scroller) is ScrollBar bar){bar.Style=(Style)Resources["IslandScrollbar"];bar.MinWidth=0;bar.Width=7;bar.Scroll+=(_,e)=>{if(e.ScrollEventType is ScrollEventType.ThumbTrack or ScrollEventType.ThumbPosition)scroller.ScrollToVerticalOffset(e.NewValue);};}}
-            StartTimers();if(diagnostic)_=RunDiagnostics();
+            if(showcase) _=RunShowcase();
+            else { StartTimers();if(diagnostic)_=RunDiagnostics(); }
         };
         Closed += (_,_) => { proximity.Stop(); seconds.Stop(); tray?.Dispose(); source?.RemoveHook(WindowMessage); Win32.RemoveClipboardFormatListener(hwnd); backend.Dispose(); CompositionTarget.Rendering -= Frame; };
         tray = new Forms.NotifyIcon { Icon = new System.Drawing.Icon(Path.Combine(AppContext.BaseDirectory, "tray-icon.ico")), Text = "Agent Island · 原生轻量版", Visible = !diagnostic };
@@ -478,6 +481,7 @@ sealed class IslandWindow : Window
             var decision=backend.Pending.FirstOrDefault(d=>d.Id==item.EventId);
             if(decision!=null)
             {
+                row.Child=null; // Detach before reparenting the row content into the decision stack.
                 var panel=new StackPanel(); panel.Children.Add(grid); var actions=new StackPanel { Orientation=Orientation.Horizontal,Margin=new(32,7,0,0) };
                 foreach(var choice in decision.Event.Actions) { var button=Button(choice.Label,()=>backend.Respond(decision.Id,choice.Id)); button.Margin=new(0,0,6,0); actions.Children.Add(button); }
                 panel.Children.Add(actions); row.Child=panel;
@@ -612,7 +616,7 @@ sealed class IslandWindow : Window
             visualPulseUntil=DateTime.UtcNow.AddSeconds(2.4);UpdatePet();await Task.Delay(300);Capture("native-alert");
             visualPulseUntil=DateTime.MinValue;await ResourceSample("hidden-effects-on",true,"hidden");
             uiChecks.Add(new{name="hidden-stops-all-decoration-clocks",passed=atmosphere.ActiveAnimations==0&&!pet.HasActiveClocks&&!hoverPet.HasActiveClocks});
-            var diagnostic=new{version="0.12.0-native",renderTier=RenderCapability.Tier>>16,samples,resources,page,placements,uiChecks,state=backend.State};
+            var diagnostic=new{version="0.12.1-native",renderTier=RenderCapability.Tier>>16,samples,resources,page,placements,uiChecks,state=backend.State};
             Json.AtomicWrite(Path.Combine(Diagnostics.OutputPath,"native-performance.json"),diagnostic);
             Close();
         }

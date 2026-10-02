@@ -40,9 +40,9 @@ sealed class Backend : IDisposable
         sessions.Changed += (state, u) => { lock (gate) { if(codexState.TaskId!=state.TaskId || codexState.Status!=state.Status)hookStates.Remove("codex"); codexState = state; if (u != null) usage = u; } Changed?.Invoke(); };
         Api = new(this);
     }
-    public void Start(bool diagnostic)
+    public void Start(bool diagnostic, bool startApi = true)
     {
-        Api.Start(Settings.Port);
+        if(startApi) Api.Start(Settings.Port);
         if (diagnostic)
         {
             agents = new[] { new Agent("codex", "Codex", "CX", Array.Empty<int>(), Array.Empty<string>(), new("working", "工作中", "验证发布包", "运行模拟检查")) };
@@ -108,7 +108,7 @@ sealed class Backend : IDisposable
     public Usage[] Usage { get { lock (gate) return usage == null ? Array.Empty<Usage>() : new[] { usage }; } }
     public IslandEvent[] History { get { lock (gate) return history.ToArray(); } }
     public Decision[] Pending { get { lock (gate) return decisions.Values.Where(d => d.Status == "pending").ToArray(); } }
-    public object State => new { name = "Agent Island", version = "0.12.0-native", listening = true, address = $"http://127.0.0.1:{Api.Port}", activeAgents = Agents, agentUsage = Usage, windowsNotifications = new { access = NotificationAccess }, pendingDecisions = Pending, latestEvent = History.FirstOrDefault() };
+    public object State => new { name = "Agent Island", version = "0.12.1-native", listening = Api.Port!=0, address = $"http://127.0.0.1:{Api.Port}", activeAgents = Agents, agentUsage = Usage, windowsNotifications = new { access = NotificationAccess }, pendingDecisions = Pending, latestEvent = History.FirstOrDefault() };
     public void SaveSettings() => Json.AtomicWrite(Path.Combine(DataPath, "settings.json"), Settings);
     public static string[] ProcessHints(string source) => Definitions.FirstOrDefault(d => d.id == source).focus ?? Array.Empty<string>();
     static string[] AppHints(string app) => app switch

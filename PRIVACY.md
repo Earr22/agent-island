@@ -30,6 +30,8 @@ The HTTP API binds only to `127.0.0.1:17321` by default; it is not exposed to th
 
 Error logs are written locally under `%LOCALAPPDATA%\AgentIslandNative\diagnostics` unless an output path is supplied. Errors can include local paths, so sanitize logs before sharing. `--self-test` and `--diagnose` use isolated test data and random local ports; diagnostic screenshots use synthetic task/quota fixtures without scanning real Codex sessions, processes, clipboard, or notifications. Reports remain local until explicitly shared.
 
+`--render-showcase` renders the native visual tree with synthetic task, quota, todo, and permission-request fixtures in a fresh isolated data folder. It does not capture the desktop, read normal settings or todos, start session/process monitoring, access the clipboard/Windows notifications, or open an HTTP listener. Public demonstration assets are explicitly labeled as simulated data. Temporary frames, reports, and logs remain in the ignored `artifacts/` directory when using the supplied rendering script.
+
 ## User-triggered outbound actions
 
 The native version removes Send to Notion. Clicking a task can focus its application, launch a Windows application, or open a URL supplied by a local integration. Opening a URL uses the default browser and may contact that destination. The project has no automatic remote content upload.

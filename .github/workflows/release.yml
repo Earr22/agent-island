@@ -32,6 +32,10 @@ jobs:
             if ($process.ExitCode -ne 0) { throw "Self-test failed: $flavor" }
             $report = Get-Content "artifacts/test-$flavor/native-self-test.json" -Raw | ConvertFrom-Json
             if (-not $report.ok) { throw "Self-test report failed: $flavor" }
+            $process = Start-Process -FilePath "artifacts/release-$flavor/AgentIsland.Native.exe" -ArgumentList '--render-showcase', "--output=artifacts/ui-test-$flavor" -PassThru -Wait -WindowStyle Hidden
+            if ($process.ExitCode -ne 0) { throw "Permission-card UI regression failed: $flavor" }
+            $ui = Get-Content "artifacts/ui-test-$flavor/showcase-manifest.json" -Raw | ConvertFrom-Json
+            if (-not $ui.decisionCardRendered -or -not $ui.decisionAnswered -or $ui.httpListenerStarted) { throw "Permission-card UI report failed: $flavor" }
           }
       - name: Package and generate SHA-256
         shell: pwsh

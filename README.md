@@ -1,50 +1,67 @@
 # Agent Island
 
-**A Windows command center for Codex and other AI coding agents.**
+**Your AI coding agents, in a Windows Dynamic Island.**
 
-[中文说明](README.zh-CN.md) · [Download v0.12.0](https://github.com/Earr22/agent-island/releases/latest) · [Report a bug](https://github.com/Earr22/agent-island/issues/new/choose) · [Join the discussion](https://github.com/Earr22/agent-island/discussions)
+[Download for Windows](https://github.com/Earr22/agent-island/releases/latest) · [中文说明](README.zh-CN.md) · [Report a bug](https://github.com/Earr22/agent-island/issues/new/choose) · [Discussions](https://github.com/Earr22/agent-island/discussions)
 
-![Agent Island showing the built-in todo workspace](docs/images/hero.png)
+See Codex work status and quota, catch agent reminders, and handle Claude Code permission requests without hunting through windows.
 
-Agent Island turns AI-agent activity into a small, always-available Dynamic Island for Windows. It shows real work state, completion, errors, notifications, and decisions without making you hunt through terminal or editor windows.
+![Agent Island expanding from a compact island to Codex quota, work events, a simulated Claude Code permission request, and todos](docs/images/demo.gif)
 
-Version 0.12.0 rebuilds the application with native WPF and .NET 8. The released application no longer embeds Electron or Chromium. The previous Electron implementation remains in `src/` for reference and rollback. Agent Island is an independent community project and is not affiliated with or endorsed by OpenAI, Anthropic, Cursor, OpenCode, or Microsoft.
+*Real native UI with simulated tasks, quota, and permission requests. [Watch or download the 15-second video](https://github.com/Earr22/agent-island/raw/refs/heads/main/docs/images/demo.mp4). No personal desktop or account data is recorded.*
 
-## Why Agent Island?
+Native WPF/.NET 8 · Windows 10/11 x64 · Portable · MIT · No telemetry
 
-- **See what is actually happening.** Codex Desktop lifecycle events drive working and idle states instead of treating a running process as active work.
-- **Watch both real quota windows.** Hover and workspace views show Codex's 5-hour and weekly remaining percentages with their reset times; unsupported agents are marked unavailable instead of showing estimated data.
-- **Keep quota data fresh and scriptable.** Known Codex sessions are rechecked about every 2.5 seconds, filesystem events accelerate updates, and the current snapshot is available from the loopback `/v1/state` endpoint. Account data only changes when Codex writes new local records.
-- **Open a prepared workspace.** Three reusable native pages and transform-based animations keep file parsing and discovery off the UI thread; hidden decorative animations stop.
-- **Return to the right window.** The workspace lists connected agents and recent events, then focuses the matching application.
-- **Handle decisions quickly.** Claude Code permission hooks can wait for an Allow or Deny response in the island.
-- **Keep small tasks nearby.** Built-in todos include completion state and a single-task timer.
-- **Stay local by default.** The API listens only on `127.0.0.1`; clipboard history stays in memory; notification capture is off until enabled.
+## Try it in three steps
 
-## Highlights
+1. **[Download the complete Windows ZIP](https://github.com/Earr22/agent-island/releases/download/v0.12.1/Agent-Island-Native-0.12.1-win-x64-self-contained.zip)** and its [SHA-256 checksum](https://github.com/Earr22/agent-island/releases/download/v0.12.1/Agent-Island-Native-0.12.1-win-x64-self-contained.zip.sha256). This is the recommended package; the .NET desktop runtime is included.
+2. Verify the checksum and extract the **whole ZIP** into a writable folder. Keep the DLLs, runtime files, tray icon, and notification helper alongside the executable.
+3. Run `AgentIsland.Native.exe`. Choose whether to enable clipboard history, then hover over the island to expand it and click to open the workspace.
 
-- Top, bottom, left, right, or free placement with edge snapping and auto-hide.
-- Pixel companion states for working, resting, and attention.
-- Work, Todos, and Clipboard pages in one compact surface.
-- Codex Desktop session monitoring plus Codex lifecycle hooks.
-- Claude Code hooks, including permission decisions.
-- OpenCode example plugin and a generic local REST API.
-- Optional Windows notification capture, disabled by default.
-- Memory-only clipboard history for the latest 30 text or image items.
-- Portable Windows build; no installer or administrator access required.
+No installer or administrator access is required. Codex Desktop monitoring works from local session records; Claude Code permission handling requires the [hook setup below](#claude-code). Other agents need their integration or the local API—process detection alone does not provide full task status.
 
-## Download
+**Safety:** release builds are not code-signed, so Windows SmartScreen may show an “Unknown publisher” warning. Verify the checksum before running; you can also [build from source](#run-from-source).
 
-Choose a ZIP and its `.sha256` file from the [latest release](https://github.com/Earr22/agent-island/releases/latest):
+Already have the .NET 8 Desktop Runtime (x64)? The [smaller framework-dependent ZIP](https://github.com/Earr22/agent-island/releases/download/v0.12.1/Agent-Island-Native-0.12.1-win-x64-framework-dependent.zip) and both checksums are available in [Releases](https://github.com/Earr22/agent-island/releases/latest).
 
-- `Agent-Island-Native-0.12.0-win-x64-self-contained.zip`: recommended; includes the .NET desktop runtime.
-- `Agent-Island-Native-0.12.0-win-x64-framework-dependent.zip`: smaller; requires the .NET 8 Desktop Runtime (x64) to be installed separately.
+## What it looks like in use
 
-Extract the entire ZIP into a writable folder, then run `AgentIsland.Native.exe`. Keep the DLLs, runtime files, tray icon, and notification helper alongside the executable. No installer or administrator access is required.
+### Know what is running—and what needs you
 
-Release builds are currently **not code-signed**, so Windows SmartScreen may show an “Unknown publisher” warning. Verify the SHA-256 file before running it. You can also build from source using the instructions below.
+Codex lifecycle events distinguish active work from an idle process. Agent events collect completion, errors, and reminders in the Work page. Click a work item to return to the matching application; this does not guarantee the exact terminal tab or CLI subtask.
 
-Requirements: Windows 10 or 11, x64.
+![Agent Island Work page with simulated Codex tasks](docs/images/work.png)
+
+### Check both Codex quota windows at a glance
+
+Hover to see the 5-hour and weekly remaining percentages. Reset times, source, and update time are available in the quota tooltip. Values come from local Codex records, not estimates; agents without supported quota data are marked unavailable.
+
+![Agent Island hover view with simulated Codex 5-hour and weekly remaining quota](docs/images/quota.png)
+
+### Answer Claude Code permission requests from the island
+
+With the Claude Code permission hook configured, choose Allow or Deny in the panel and send the response back to Claude Code. **Codex approvals still need to be handled in Codex.**
+
+![Agent Island with a simulated Claude Code permission request and Allow and Deny buttons](docs/images/decision.png)
+
+### Small utilities, close at hand
+
+- Work, Todos, and Clipboard pages in one compact workspace; todos include completion and a single-task timer.
+- Top, bottom, left, right, or free placement, with edge snapping and auto-hide.
+- Optional memory-only clipboard history, up to 30 text or image items; optional Windows notification capture, off by default.
+- Pixel companion states for working, resting, and attention; decorative animations stop when hidden.
+- Codex lifecycle hooks, a Claude Code hook, an OpenCode example plugin, and a generic local REST API.
+
+## Compatibility
+
+| Tool | What is available | Setup |
+| --- | --- | --- |
+| Codex Desktop | Work/idle lifecycle, visible task text, 5-hour and weekly quota | Local session monitoring; optional lifecycle hooks |
+| Claude Code | Hook-driven work events and permission decisions | Configure the Claude Code hooks |
+| OpenCode | Events through the example plugin | Install the example plugin |
+| Cursor / other local agents | Events through the REST API; matching application jump-back | Send events through an integration or script |
+
+See [Agent integrations](#agent-integrations) for setup. Agent Island is an independent community project, not affiliated with or endorsed by OpenAI, Anthropic, Cursor, OpenCode, or Microsoft.
 
 ## Privacy at a glance
 
@@ -60,7 +77,11 @@ Requirements: Windows 10 or 11, x64.
 
 The Codex prompt body is visible by default because it identifies the active task. Disable clipboard history at any time from the tray menu, which also clears its in-memory history. Existing settings and todos remain at `%APPDATA%\agent-island`. Read [PRIVACY.md](PRIVACY.md) for the complete data boundary.
 
+Other local programs can read event/task text and submit decision responses through the API. Loopback-only access is not an authentication boundary.
+
 ## Upgrade from Electron
+
+Version 0.12.0 rebuilds the application with native WPF and .NET 8. The released application no longer embeds Electron or Chromium. The previous Electron implementation remains in `src/` for reference and rollback.
 
 Exit the Electron application before starting the native version; both use port 17321 and the same settings/todo directory. If an old shortcut or startup entry still launches Electron, update it to the native executable. The native tray menu can configure startup. The previous [v0.11.3 release](https://github.com/Earr22/agent-island/releases/tag/v0.11.3) remains available for rollback; exit the native app first.
 
@@ -86,6 +107,18 @@ Development and validation:
 ```
 
 The default build is framework-dependent and writes to `dist/native/`. See [native/README.zh-CN.md](native/README.zh-CN.md) for details. Node.js and Electron are needed only for optional icon regeneration and the legacy implementation.
+
+### Reproduce the public demo
+
+The screenshots and animation are rendered from the real WPF visual tree using synthetic fixtures, not a desktop recording. The renderer does not start session monitoring, clipboard capture, Windows notification capture, or an HTTP listener, and does not load normal settings or todos.
+
+With .NET 8 SDK and Python with Pillow installed:
+
+```powershell
+.\scripts\render-showcase.ps1
+```
+
+Pass `-Dotnet` or `-Python` to select an existing runtime. MP4 encoding is optional: install `imageio-ffmpeg` in your chosen Python environment or pass `-Ffmpeg` with an existing encoder. Temporary frames and synthetic data stay in ignored `artifacts/`; only the reviewed media under `docs/images/` is public. Do not publish diagnostic logs or real session captures.
 
 ## Send an event in 30 seconds
 
