@@ -2,20 +2,20 @@
 
 **A Windows command center for Codex and other AI coding agents.**
 
-[中文说明](README.zh-CN.md) · [Download v0.11.3](https://github.com/Earr22/agent-island/releases/latest) · [Report a bug](https://github.com/Earr22/agent-island/issues/new/choose) · [Join the discussion](https://github.com/Earr22/agent-island/discussions)
+[中文说明](README.zh-CN.md) · [Download v0.12.0](https://github.com/Earr22/agent-island/releases/latest) · [Report a bug](https://github.com/Earr22/agent-island/issues/new/choose) · [Join the discussion](https://github.com/Earr22/agent-island/discussions)
 
 ![Agent Island showing the built-in todo workspace](docs/images/hero.png)
 
 Agent Island turns AI-agent activity into a small, always-available Dynamic Island for Windows. It shows real work state, completion, errors, notifications, and decisions without making you hunt through terminal or editor windows.
 
-This is the first formal public release. Agent Island is an independent community project and is not affiliated with or endorsed by OpenAI, Anthropic, Cursor, OpenCode, or Microsoft.
+Version 0.12.0 rebuilds the application with native WPF and .NET 8. The released application no longer embeds Electron or Chromium. The previous Electron implementation remains in `src/` for reference and rollback. Agent Island is an independent community project and is not affiliated with or endorsed by OpenAI, Anthropic, Cursor, OpenCode, or Microsoft.
 
 ## Why Agent Island?
 
 - **See what is actually happening.** Codex Desktop lifecycle events drive working and idle states instead of treating a running process as active work.
 - **Watch both real quota windows.** Hover and workspace views show Codex's 5-hour and weekly remaining percentages with their reset times; unsupported agents are marked unavailable instead of showing estimated data.
-- **Keep quota data fresh and scriptable.** Known Codex sessions are rechecked about every 2.5 seconds, optional Credits balance and update time appear in the tooltip, and the current snapshot is available from the loopback `/v1/state` endpoint.
-- **Open the workspace without a blocking fetch.** A fixed-size shell appears first, only the active page renders, and the three page data sets are prefetched while idle.
+- **Keep quota data fresh and scriptable.** Known Codex sessions are rechecked about every 2.5 seconds, filesystem events accelerate updates, and the current snapshot is available from the loopback `/v1/state` endpoint. Account data only changes when Codex writes new local records.
+- **Open a prepared workspace.** Three reusable native pages and transform-based animations keep file parsing and discovery off the UI thread; hidden decorative animations stop.
 - **Return to the right window.** The workspace lists connected agents and recent events, then focuses the matching application.
 - **Handle decisions quickly.** Claude Code permission hooks can wait for an Allow or Deny response in the island.
 - **Keep small tasks nearby.** Built-in todos include completion state and a single-task timer.
@@ -35,7 +35,12 @@ This is the first formal public release. Agent Island is an independent communit
 
 ## Download
 
-Download `Agent-Island-Portable-0.11.3-x64.exe` and its `.sha256` file from the [latest release](https://github.com/Earr22/agent-island/releases/latest).
+Choose a ZIP and its `.sha256` file from the [latest release](https://github.com/Earr22/agent-island/releases/latest):
+
+- `Agent-Island-Native-0.12.0-win-x64-self-contained.zip`: recommended; includes the .NET desktop runtime.
+- `Agent-Island-Native-0.12.0-win-x64-framework-dependent.zip`: smaller; requires the .NET 8 Desktop Runtime (x64) to be installed separately.
+
+Extract the entire ZIP into a writable folder, then run `AgentIsland.Native.exe`. Keep the DLLs, runtime files, tray icon, and notification helper alongside the executable. No installer or administrator access is required.
 
 Release builds are currently **not code-signed**, so Windows SmartScreen may show an “Unknown publisher” warning. Verify the SHA-256 file before running it. You can also build from source using the instructions below.
 
@@ -45,37 +50,42 @@ Requirements: Windows 10 or 11, x64.
 
 | Capability | Default | Storage / network behavior |
 | --- | --- | --- |
-| Clipboard history | On, with first-run notice | Last 30 items in process memory only; cleared on exit |
+| Clipboard history | First-run choice | Last 30 items in process memory only, with an image-memory bound; cleared on exit |
 | Windows notification capture | Off | When enabled, reads visible toast text locally |
 | Remove captured notifications | Off | Must be enabled separately |
 | Todos | On demand | Stored at `%APPDATA%\agent-island\todos.json` |
-| Codex session monitoring | On when Codex is present | Reads lifecycle events, prompt text, 5-hour and weekly quota/rate-limit fields, optional Credits balance, plan type, and context-window usage locally; never reads reasoning content |
+| Codex session monitoring | On when Codex is present | Reads lifecycle events, prompt text, 5-hour and weekly quota/rate-limit fields locally; reasoning records are not parsed or displayed |
 | Local event API | On | Binds to `127.0.0.1:17321`; browser cross-origin access is disabled |
 | Telemetry / analytics | None | No usage analytics, tracking SDK, or cloud account |
 
-The Codex prompt body is visible by default because it identifies the active task. Disable clipboard history at any time from the tray menu, which also clears its in-memory history. Read [PRIVACY.md](PRIVACY.md) for the complete data boundary.
+The Codex prompt body is visible by default because it identifies the active task. Disable clipboard history at any time from the tray menu, which also clears its in-memory history. Existing settings and todos remain at `%APPDATA%\agent-island`. Read [PRIVACY.md](PRIVACY.md) for the complete data boundary.
+
+## Upgrade from Electron
+
+Exit the Electron application before starting the native version; both use port 17321 and the same settings/todo directory. If an old shortcut or startup entry still launches Electron, update it to the native executable. The native tray menu can configure startup. The previous [v0.11.3 release](https://github.com/Earr22/agent-island/releases/tag/v0.11.3) remains available for rollback; exit the native app first.
+
+The native version removes Send to Notion and currently shows quota windows without the previous Credits/context tooltip fields. Notification capture does not suppress Windows toast banners; configure Windows notification settings if you want island-only reminders.
 
 ## Run from source
 
-Install Node.js 20 or newer, then:
+Install the .NET 8 SDK on Windows, then:
 
 ```powershell
 git clone https://github.com/Earr22/agent-island.git
 cd agent-island
-npm ci
-npm start
+.\native\build.ps1
+.\dist\native\AgentIsland.Native.exe
 ```
 
 Development and validation:
 
 ```powershell
-npm run dev
-npm run check
-npm test
-npm run build:portable
+.\dist\native\AgentIsland.Native.exe --self-test --output=artifacts/native-self-test
+.\dist\native\AgentIsland.Native.exe --diagnose --output=artifacts/native-diagnostics
+.\native\build.ps1 -SelfContained -OutputDirectory artifacts/native-self-contained
 ```
 
-Build output is written to `dist/`.
+The default build is framework-dependent and writes to `dist/native/`. See [native/README.zh-CN.md](native/README.zh-CN.md) for details. Node.js and Electron are needed only for optional icon regeneration and the legacy implementation.
 
 ## Send an event in 30 seconds
 
@@ -108,7 +118,7 @@ Supported event types are `working`, `progress`, `success`, `error`, `warning`, 
 
 ### Codex
 
-Agent Island incrementally reads local Codex Desktop session records. `task_started` starts the work state and `task_complete` returns it to idle. Prompt text is used only as the visible task label. `token_count` records provide the 5-hour and weekly quota windows, reset times, optional Credits balance, plan type, and context-window usage. Reasoning content is not read. The latest quota snapshot is also included in the loopback-only `/v1/state` response.
+Agent Island incrementally scans local Codex Desktop session files for lifecycle and quota records. `task_started` starts the work state and `task_complete` returns it to idle. Prompt text is used as the visible task label. `token_count` records provide the 5-hour and weekly quota windows and reset times. Reasoning records are ignored. The latest quota snapshot is also included in the loopback-only `/v1/state` response.
 
 For lifecycle hooks, copy [`integrations/codex.hooks.example.json`](integrations/codex.hooks.example.json) to `~/.codex/hooks.json`, replace `PROJECT_PATH`, and trust it from Codex. Codex approval requests currently direct you back to Codex; Agent Island does not claim an approval it cannot send back.
 

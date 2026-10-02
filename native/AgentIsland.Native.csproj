@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <ApplicationIcon>../build/icon.ico</ApplicationIcon>
+    <Version>0.12.0</Version>
+    <RollForward>LatestPatch</RollForward>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Include="../build/tray-icon.ico" Link="tray-icon.ico" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../scripts/windows-notification-listener.ps1" Link="windows-notification-listener.ps1" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

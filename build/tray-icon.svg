@@ -1,4 +1,4 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="1 1 18 18">
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="1.4 1.4 17.2 17.2">
   <!-- Same awake pose, geometry and palette as native/VisualDesign.cs. -->
   <g transform="translate(1.5 1.5)">
     <rect x="4" y="4" width="12" height="11" rx="5" fill="#79dcc7"/>

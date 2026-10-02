@@ -10,7 +10,7 @@ body:
     id: version
     attributes:
       label: Version
-      placeholder: v0.11.3
+      placeholder: v0.12.0 native (self-contained or framework-dependent)
     validations:
       required: true
   - type: input

@@ -10,13 +10,12 @@ Thanks for helping improve Agent Island.
 
 ## Development
 
-Requirements: Windows 10 or 11, Node.js 20 or newer.
+Requirements: Windows 10 or 11, .NET 8 SDK. Node.js 20 or newer is optional for icon generation and legacy Electron development.
 
 ```powershell
-npm ci
-npm run check
-npm test
-npm start
+.\native\build.ps1
+.\dist\native\AgentIsland.Native.exe --self-test --output=artifacts/native-self-test
+.\dist\native\AgentIsland.Native.exe --diagnose --output=artifacts/native-diagnostics
 ```
 
 Keep changes focused. Add or update tests for behavior changes. Preserve the local-first model: no telemetry, remote logging, or new outbound data flow without an explicit design discussion and user control.

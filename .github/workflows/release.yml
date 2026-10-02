@@ -9,36 +9,51 @@ permissions:
   contents: write
 
 jobs:
-  portable:
+  native:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-dotnet@v4
         with:
-          node-version: 20
-          cache: npm
-      - run: npm ci
-      - run: npm run check
-      - run: npm test
-      - run: npm run build:portable
-      - name: Generate SHA-256
+          dotnet-version: '8.0.x'
+      - name: Verify version and build both packages
         shell: pwsh
         run: |
-          $artifact = Get-ChildItem -LiteralPath dist -Filter 'Agent-Island-Portable-*.exe' | Select-Object -First 1
-          if (-not $artifact) { throw 'Portable artifact was not produced.' }
-          $hash = (Get-FileHash -LiteralPath $artifact.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$hash  $($artifact.Name)" | Set-Content -LiteralPath "$($artifact.FullName).sha256" -Encoding ascii
+          [xml]$project = Get-Content native/AgentIsland.Native.csproj
+          $version = [string]$project.Project.PropertyGroup.Version
+          if ("v$version" -ne $env:GITHUB_REF_NAME) { throw 'Tag and native version differ.' }
+          .\native\build.ps1 -OutputDirectory artifacts/release-framework-dependent
+          .\native\build.ps1 -SelfContained -OutputDirectory artifacts/release-self-contained
+      - name: Test both packages
+        shell: pwsh
+        run: |
+          foreach ($flavor in @('framework-dependent', 'self-contained')) {
+            $process = Start-Process -FilePath "artifacts/release-$flavor/AgentIsland.Native.exe" -ArgumentList '--self-test', "--output=artifacts/test-$flavor" -PassThru -Wait -WindowStyle Hidden
+            if ($process.ExitCode -ne 0) { throw "Self-test failed: $flavor" }
+            $report = Get-Content "artifacts/test-$flavor/native-self-test.json" -Raw | ConvertFrom-Json
+            if (-not $report.ok) { throw "Self-test report failed: $flavor" }
+          }
+      - name: Package and generate SHA-256
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path release -Force | Out-Null
+          $version = $env:GITHUB_REF_NAME.Substring(1)
+          foreach ($flavor in @('framework-dependent', 'self-contained')) {
+            $folder = "artifacts/release-$flavor"
+            Copy-Item -LiteralPath LICENSE, THIRD_PARTY_NOTICES.md, README.zh-CN.md, PRIVACY.md -Destination $folder
+            $artifact = "release/Agent-Island-Native-$version-win-x64-$flavor.zip"
+            Compress-Archive -Path "$folder/*" -DestinationPath $artifact
+            $hash = (Get-FileHash -LiteralPath $artifact -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $([IO.Path]::GetFileName($artifact))" | Set-Content -LiteralPath "$artifact.sha256" -Encoding ascii
+          }
       - name: Publish GitHub Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           $tag = $env:GITHUB_REF_NAME
-          $artifact = Get-ChildItem -LiteralPath dist -Filter 'Agent-Island-Portable-*.exe' | Select-Object -First 1
           $notes = ".github/release-notes/$tag.md"
-          $assets = @($artifact.FullName, "$($artifact.FullName).sha256")
-          if (Test-Path -LiteralPath $notes) {
-            gh release create $tag @assets --title "Agent Island $tag" --notes-file $notes --verify-tag
-          } else {
-            gh release create $tag @assets --title "Agent Island $tag" --generate-notes --verify-tag
-          }
+          if (-not (Test-Path -LiteralPath $notes)) { throw 'Release notes are required.' }
+          $assets = @(Get-ChildItem -LiteralPath release -File | Select-Object -ExpandProperty FullName)
+          gh release create $tag @assets --title "Agent Island $tag" --notes-file $notes --verify-tag
+          if ($LASTEXITCODE -ne 0) { throw 'Release publication failed.' }

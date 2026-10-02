@@ -5,3 +5,7 @@ artifacts/
 *.log
 .DS_Store
 Thumbs.db
+native/bin/
+native/obj/
+build/icon-source.png
+build/companion.png

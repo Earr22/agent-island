@@ -9,7 +9,25 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  native:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Build native application
+        shell: pwsh
+        run: .\native\build.ps1 -OutputDirectory artifacts/ci-native
+      - name: Native self-test
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath artifacts/ci-native/AgentIsland.Native.exe -ArgumentList '--self-test', '--output=artifacts/ci-test' -PassThru -Wait -WindowStyle Hidden
+          if ($process.ExitCode -ne 0) { throw 'Native self-test failed.' }
+          $report = Get-Content artifacts/ci-test/native-self-test.json -Raw | ConvertFrom-Json
+          if (-not $report.ok) { throw 'Native self-test report failed.' }
+          Write-Output "Native checks passed: $($report.checks)"
+  legacy:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7
