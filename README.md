@@ -8,7 +8,7 @@ See Codex work status and quota, catch agent reminders, and handle Claude Code p
 
 ![Agent Island expanding from a compact island to Codex quota, work events, a simulated Claude Code permission request, and todos](docs/images/demo.gif)
 
-*Real native UI with simulated tasks, quota, and permission requests. [Watch or download the 15-second video](https://github.com/Earr22/agent-island/raw/refs/heads/main/docs/images/demo.mp4). No personal desktop or account data is recorded.*
+*Real native UI with simulated tasks, quota, and permission requests. All demo captions are bilingual (Chinese / English); the actual app interface is shown unchanged in Chinese, with an English control legend. [Watch or download the 15-second video](https://github.com/Earr22/agent-island/raw/refs/heads/main/docs/images/demo.mp4). No personal desktop or account data is recorded.*
 
 Native WPF/.NET 8 · Windows 10/11 x64 · Portable · MIT · No telemetry
 

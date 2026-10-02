@@ -14,6 +14,7 @@ parser.add_argument("--ffmpeg")
 args = parser.parse_args()
 manifest = json.loads((args.input / "showcase-manifest.json").read_text(encoding="utf-8-sig"))
 assert manifest["syntheticData"] and manifest["decisionCardRendered"] and manifest["decisionAnswered"]
+assert manifest["bilingualCaptions"] and manifest["captionLanguages"] == ["zh-CN", "en"]
 assert not any(manifest[key] for key in (
     "desktopCaptured", "sessionMonitoring", "clipboardRead",
     "windowsNotificationsRead", "httpListenerStarted",

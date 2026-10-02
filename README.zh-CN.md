@@ -8,7 +8,7 @@
 
 ![灵动岛从收起状态展开，展示 Codex 额度、工作事件、模拟的 Claude Code 授权请求和待办](docs/images/demo.gif)
 
-*真实原生界面，任务、额度和授权请求均为模拟数据。[观看或下载 15 秒演示视频](https://github.com/Earr22/agent-island/raw/refs/heads/main/docs/images/demo.mp4)。没有录制私人桌面或账户数据。*
+*真实原生界面，任务、额度和授权请求均为模拟数据。宣传说明均为中英双语；应用实际中文界面保持原样，并附关键按钮英文对照。[观看或下载 15 秒演示视频](https://github.com/Earr22/agent-island/raw/refs/heads/main/docs/images/demo.mp4)。没有录制私人桌面或账户数据。*
 
 原生 WPF/.NET 8 · Windows 10/11 x64 · 免安装 · MIT 开源 · 无遥测
 

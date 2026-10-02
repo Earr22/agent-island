@@ -34,6 +34,7 @@ jobs:
           if ($process.ExitCode -ne 0) { throw 'Showcase UI regression failed.' }
           $report = Get-Content artifacts/ci-showcase/showcase-manifest.json -Raw | ConvertFrom-Json
           if (-not $report.decisionCardRendered -or -not $report.decisionAnswered -or $report.frameCount -ne 180) { throw 'Permission-card regression report failed.' }
+          if (-not $report.bilingualCaptions -or ($report.captionLanguages -join ',') -ne 'zh-CN,en') { throw 'Bilingual showcase caption check failed.' }
           foreach ($field in @('desktopCaptured', 'sessionMonitoring', 'clipboardRead', 'windowsNotificationsRead', 'httpListenerStarted')) {
             if ($report.$field) { throw "Showcase isolation failed: $field" }
           }
