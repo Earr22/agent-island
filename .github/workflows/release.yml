@@ -36,6 +36,15 @@ jobs:
             if ($process.ExitCode -ne 0) { throw "Permission-card UI regression failed: $flavor" }
             $ui = Get-Content "artifacts/ui-test-$flavor/showcase-manifest.json" -Raw | ConvertFrom-Json
             if (-not $ui.decisionCardRendered -or -not $ui.decisionAnswered -or $ui.httpListenerStarted) { throw "Permission-card UI report failed: $flavor" }
+            $process = Start-Process -FilePath "artifacts/release-$flavor/AgentIsland.Native.exe" -ArgumentList '--diagnose', "--output=artifacts/drag-test-$flavor" -PassThru -Wait -WindowStyle Hidden
+            if ($process.ExitCode -ne 0) { throw "Drag UI regression failed: $flavor" }
+            $drag = Get-Content "artifacts/drag-test-$flavor/native-performance.json" -Raw | ConvertFrom-Json
+            $required = @('compact-blank-area-draggable', 'hover-blank-area-draggable', 'drag-threshold-preserves-click', 'armed-drag-blocks-hover-transition', 'drag-moves-window-in-dips', 'capture-loss-persists-free-position', 'snap-prompt-balanced-layout', 'workspace-top-grip-draggable')
+            foreach ($name in $required) {
+              if (-not ($drag.uiChecks | Where-Object { $_.name -eq $name -and $_.passed })) { throw "Missing or failed UI check: $flavor / $name" }
+            }
+            if (@($drag.uiChecks).Count -lt 28 -or @($drag.uiChecks | Where-Object { -not $_.passed }).Count) { throw "UI regression checks failed: $flavor" }
+            if (@($drag.placements).Count -ne 4 -or @($drag.placements | Where-Object { -not $_.visibleInsideCanvas -or -not $_.visibleInsideScreen }).Count) { throw "Edge placement checks failed: $flavor" }
           }
       - name: Package and generate SHA-256
         shell: pwsh

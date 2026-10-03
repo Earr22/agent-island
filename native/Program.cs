@@ -8,6 +8,7 @@ namespace AgentIsland;
 
 static class Diagnostics
 {
+    public static bool ManualUi;
     public static string OutputPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"AgentIslandNative","diagnostics");
     static readonly object gate=new();
     public static void Log(string area,string message) { try { lock(gate){Directory.CreateDirectory(OutputPath);File.AppendAllText(Path.Combine(OutputPath,"native.log"),$"{Json.Now} [{area}] {message}\n");} } catch { } }
@@ -19,13 +20,14 @@ static class Program
     {
         bool showcase=args.Contains("--render-showcase");
         bool diagnostic=args.Contains("--diagnose") || showcase;
+        Diagnostics.ManualUi=diagnostic&&args.Contains("--manual-ui");
         var output=args.FirstOrDefault(a=>a.StartsWith("--output="));if(output!=null)Diagnostics.OutputPath=Path.GetFullPath(output[9..]);
         if(args.Contains("--self-test")) { try{SelfTest.Run().GetAwaiter().GetResult();return 0;}catch(Exception e){Diagnostics.Log("self-test",e.ToString());return 1;} }
         using var mutex=new Mutex(true,diagnostic?"AgentIsland.Native.Diagnostics":"AgentIsland.Native",out var owns);
         if(!owns)return 0;
         var data=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),"agent-island");
         Settings settings;
-        if(diagnostic){data=Path.Combine(Diagnostics.OutputPath,showcase?"showcase-data-"+Guid.NewGuid().ToString("N"):"test-data");settings=new(){Port=0,AutoHide=false,CaptureWindowsNotifications=false,ClipboardHistory=false,Placement=new()};}
+        if(diagnostic){data=Path.Combine(Diagnostics.OutputPath,showcase?"showcase-data-"+Guid.NewGuid().ToString("N"):"test-data");settings=new(){Port=0,AutoHide=false,CaptureWindowsNotifications=false,ClipboardHistory=false,Placement=Diagnostics.ManualUi?new(){Mode="free",X=500,Y=200}:new()};}
         else {try{settings=Json.Read<Settings>(File.ReadAllText(Path.Combine(data,"settings.json")))??new();}catch{settings=new();}}
         try
         {

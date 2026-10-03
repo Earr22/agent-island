@@ -57,10 +57,14 @@ sealed partial class IslandWindow : Window
     bool updateQueued, dragging, outsidePressed, preparing;
     Point? dragStart;
     Point dragWindowStart;
+    UIElement? dragCapture;
+    readonly Border dragGrip = new();
     string? snapEdge;
     IslandEvent? notice;
     DateTime noticeUntil;
     Border? snapPrompt;
+    Popup? snapPopup;
+    Rect snapPromptScreenRect;
     HwndSource? source;
     IntPtr hwnd;
     const double WorkspaceWidth=432,WorkspaceHeight=300,HoverWidth=386,HoverHeight=64;
@@ -74,8 +78,8 @@ sealed partial class IslandWindow : Window
         if(showcase) Opacity=0; // Render our visual tree only, never the user's desktop.
         Width = CanvasWidth; Height = CanvasHeight; WindowStyle = WindowStyle.None;
         AllowsTransparency = true; Background = Brushes.Transparent; ResizeMode = ResizeMode.NoResize;
-        ShowInTaskbar = false; Topmost = true; ShowActivated = false;
-        Title = "Agent Island Native"; Content = canvas;
+        ShowInTaskbar = Diagnostics.ManualUi; Topmost = true; ShowActivated = Diagnostics.ManualUi;
+        Title = Diagnostics.ManualUi?"Agent Island · Drag UI Test":"Agent Island Native"; Content = canvas;
         FontFamily = new("Microsoft YaHei UI, Segoe UI"); FontSize = 12; Foreground = Brush("#F4F6FB");
         UseLayoutRounding=true;SnapsToDevicePixels=true;TextOptions.SetTextFormattingMode(this,TextFormattingMode.Display);
         TextOptions.SetTextRenderingMode(this,TextRenderingMode.Grayscale);
@@ -95,9 +99,14 @@ sealed partial class IslandWindow : Window
         hoverQuota.HorizontalAlignment=HorizontalAlignment.Right;hoverQuota.VerticalAlignment=VerticalAlignment.Center;Grid.SetColumn(hoverQuota,2);hv.Children.Add(hoverQuota);
         hover.Children.Add(hv);
         compact.Cursor = Cursors.Hand; hover.Cursor = Cursors.Hand;
-        compact.MouseLeftButtonDown += BeginDrag; hover.MouseLeftButtonDown += BeginDrag;
-        compact.MouseMove += ContinueDrag; hover.MouseMove += ContinueDrag;
-        compact.MouseLeftButtonUp += EndDrag; hover.MouseLeftButtonUp += EndDrag;
+        compact.Background=hover.Background=Brushes.Transparent;
+        foreach(var surface in new UIElement[]{compact,hover,dragGrip})
+        {
+            surface.MouseLeftButtonDown+=BeginDrag;
+            surface.MouseMove+=ContinueDrag;
+            surface.MouseLeftButtonUp+=EndDrag;
+            surface.LostMouseCapture+=(_,_)=>CancelDrag();
+        }
         compact.MouseEnter += (_,_) => { if(!dragging) ChangeMode("hover"); };
         hover.MouseEnter += (_,_) => lastInside.Restart();
         BuildWorkspace();
@@ -111,8 +120,8 @@ sealed partial class IslandWindow : Window
         });
         clipboard.Changed += () => UpdateClipboard();
         SourceInitialized += (_,_) => InitializeNative();
-        Deactivated += (_,_) => { if(mode=="workspace"&&!diagnostic&&!dragging&&snapPrompt==null)ChangeMode("compact"); };
-        IsVisibleChanged+=(_,_)=>UpdatePet();
+        Deactivated += (_,_) => { if(mode=="workspace"&&!diagnostic&&dragStart==null&&snapPrompt==null)ChangeMode("compact"); };
+        IsVisibleChanged+=(_,_)=>{if(!IsVisible&&snapPopup!=null)ResolveSnap(false);UpdatePet();};
         Loaded += (_,_) =>
         {
             PositionWindow(); UpdateData();
@@ -121,9 +130,9 @@ sealed partial class IslandWindow : Window
             UpdateLayout();
             foreach(var scroller in scrolls){scroller.ApplyTemplate();if(scroller.Template.FindName("PART_VerticalScrollBar",scroller) is ScrollBar bar){bar.Style=(Style)Resources["IslandScrollbar"];bar.MinWidth=0;bar.Width=7;bar.Scroll+=(_,e)=>{if(e.ScrollEventType is ScrollEventType.ThumbTrack or ScrollEventType.ThumbPosition)scroller.ScrollToVerticalOffset(e.NewValue);};}}
             if(showcase) _=RunShowcase();
-            else { StartTimers();if(diagnostic)_=RunDiagnostics(); }
+            else { StartTimers();if(diagnostic&&!Diagnostics.ManualUi)_=RunDiagnostics(); }
         };
-        Closed += (_,_) => { proximity.Stop(); seconds.Stop(); tray?.Dispose(); source?.RemoveHook(WindowMessage); Win32.RemoveClipboardFormatListener(hwnd); backend.Dispose(); CompositionTarget.Rendering -= Frame; };
+        Closed += (_,_) => { if(snapPopup!=null)snapPopup.IsOpen=false; proximity.Stop(); seconds.Stop(); tray?.Dispose(); source?.RemoveHook(WindowMessage); Win32.RemoveClipboardFormatListener(hwnd); backend.Dispose(); CompositionTarget.Rendering -= Frame; };
         tray = new Forms.NotifyIcon { Icon = new System.Drawing.Icon(Path.Combine(AppContext.BaseDirectory, "tray-icon.ico")), Text = "Agent Island · 原生轻量版", Visible = !diagnostic };
         tray.MouseClick += (_,e) => { if(e.Button == Forms.MouseButtons.Left) Dispatcher.Invoke(() => { Show(); ChangeMode("compact"); lastInside.Restart(); }); };
         RebuildTray();
@@ -175,6 +184,11 @@ sealed partial class IslandWindow : Window
         var countChip=new Border{Width=17,Height=17,CornerRadius=new(8.5),Background=Brush("#0F1218"),BorderBrush=Brush("#292E37"),BorderThickness=new(1),Child=workCount};workCount.TextAlignment=TextAlignment.Center;Grid.SetColumn(countChip,3);header.Children.Add(countChip);
         header.PreviewMouseWheel += (_,e) => { SwitchPage((page + (e.Delta < 0 ? 1 : 2)) % 3); e.Handled = true; };
         workspace.Children.Add(header);
+        dragGrip.Height=9;dragGrip.VerticalAlignment=VerticalAlignment.Top;dragGrip.Margin=new(16,0,16,0);
+        dragGrip.Background=Brushes.Transparent;dragGrip.Cursor=Cursors.SizeAll;
+        dragGrip.ToolTip="按住顶部拖动灵动岛";
+        dragGrip.Child=new Border{Width=28,Height=2,CornerRadius=new(1),Background=Brush("#535C6C"),Opacity=.65,VerticalAlignment=VerticalAlignment.Center};
+        workspace.Children.Add(dragGrip);
         var pageHost = new Grid { Margin = new(12,0,12,0), ClipToBounds = true }; Grid.SetRow(pageHost,1); workspace.Children.Add(pageHost);
         for(int i=0;i<3;i++)
         {
@@ -204,7 +218,7 @@ sealed partial class IslandWindow : Window
     void InitializeNative()
     {
         hwnd = new WindowInteropHelper(this).Handle; source = HwndSource.FromHwnd(hwnd); source?.AddHook(WindowMessage);
-        var flags = Win32.GetWindowLong(hwnd,-20); Win32.SetWindowLong(hwnd,-20,(flags | 0x80) & ~0x40000); // tool window, not app window
+        if(!Diagnostics.ManualUi){var flags = Win32.GetWindowLong(hwnd,-20); Win32.SetWindowLong(hwnd,-20,(flags | 0x80) & ~0x40000);} // tool window, not app window
         if (backend.Settings.ClipboardHistory && !diagnostic) Win32.AddClipboardFormatListener(hwnd);
     }
     IntPtr WindowMessage(IntPtr h, int message, IntPtr w, IntPtr l, ref bool handled)
@@ -214,7 +228,7 @@ sealed partial class IslandWindow : Window
             Dispatcher.BeginInvoke(clipboard.Capture, DispatcherPriority.Background);
             _=Task.Run(async()=> { await Task.Delay(80); _=Dispatcher.BeginInvoke(clipboard.Capture,DispatcherPriority.Background); await Task.Delay(120); _=Dispatcher.BeginInvoke(clipboard.Capture,DispatcherPriority.Background); });
         }
-        if(message == 0x02E0) Dispatcher.BeginInvoke(PositionWindow);
+        if(message == 0x02E0 && dragStart==null) Dispatcher.BeginInvoke(PositionWindow);
         return IntPtr.Zero;
     }
     void StartTimers()
@@ -252,7 +266,7 @@ sealed partial class IslandWindow : Window
     }
     public void ChangeMode(string next,bool animate=true)
     {
-        if(dragging || (mode==next && shell.Width>0 && !double.IsNaN(shell.Width))) return;
+        if(dragStart!=null || dragging || (mode==next && shell.Width>0 && !double.IsNaN(shell.Width))) return;
         var oldMode=mode;
         var visualWidth=(double.IsNaN(shell.Width)?150:shell.Width)*shellScale.ScaleX;
         var visualHeight=(double.IsNaN(shell.Height)?40:shell.Height)*shellScale.ScaleY;
@@ -311,7 +325,7 @@ sealed partial class IslandWindow : Window
     }
     void CheckPointer()
     {
-        if(diagnostic || dragging || snapPrompt != null || !IsVisible || !Win32.GetCursorPos(out var p)) return;
+        if((diagnostic&&!Diagnostics.ManualUi) || dragStart!=null || dragging || snapPrompt != null || !IsVisible || !Win32.GetCursorPos(out var p)) return;
         var dpi=VisualTreeHelper.GetDpi(this); var local=new Point(p.X/dpi.DpiScaleX-Left,p.Y/dpi.DpiScaleY-Top);
         EvaluatePointer(local,Win32.GetAsyncKeyState(1)<0);
     }
@@ -328,22 +342,61 @@ sealed partial class IslandWindow : Window
     }
     void BeginDrag(object sender,MouseButtonEventArgs e)
     {
-        if(snapPrompt != null) return;
-        dragStart=PointToScreen(e.GetPosition(this)); dragWindowStart=new(Left,Top); ((UIElement)sender).CaptureMouse(); e.Handled=true;
+        if(snapPrompt != null || dragStart!=null) return;
+        var surface=(UIElement)sender;
+        if(!surface.CaptureMouse())return;
+        dragCapture=surface;
+        ArmDrag(PointToScreen(e.GetPosition(this)));
+        e.Handled=true;
+    }
+    void ArmDrag(Point screenPoint)
+    {
+        dragStart=screenPoint;dragWindowStart=new(Left,Top);dragging=false;
+        // Finish in-flight morphing once, not on each mouse move.
+        shellScale.BeginAnimation(ScaleTransform.ScaleXProperty,null);shellScale.BeginAnimation(ScaleTransform.ScaleYProperty,null);shellScale.ScaleX=shellScale.ScaleY=1;
+        foreach(var view in new[]{compact,hover,workspace})if(view.IsHitTestVisible)
+        {
+            view.BeginAnimation(OpacityProperty,null);view.Opacity=1;
+            if(view.RenderTransform is TranslateTransform offset){offset.BeginAnimation(TranslateTransform.YProperty,null);offset.Y=0;}
+        }
     }
     void ContinueDrag(object sender,System.Windows.Input.MouseEventArgs e)
     {
-        if(dragStart==null || e.LeftButton!=MouseButtonState.Pressed) return;
-        var p=PointToScreen(e.GetPosition(this)); var dpi=VisualTreeHelper.GetDpi(this); var delta=p-dragStart.Value;
-        if(!dragging && delta.Length<5) return;
+        if(dragStart==null)return;
+        if(e.LeftButton!=MouseButtonState.Pressed){CancelDrag();return;}
+        MoveDrag(PointToScreen(e.GetPosition(this)));
+        e.Handled=true;
+    }
+    void MoveDrag(Point screenPoint)
+    {
+        if(dragStart==null)return;
+        var dpi=VisualTreeHelper.GetDpi(this);var physical=screenPoint-dragStart.Value;
+        var delta=new Vector(physical.X/dpi.DpiScaleX,physical.Y/dpi.DpiScaleY);
+        if(!dragging && Math.Abs(delta.X)<SystemParameters.MinimumHorizontalDragDistance && Math.Abs(delta.Y)<SystemParameters.MinimumVerticalDragDistance)return;
         dragging=true;
-        var s=ScreenRect(); Left=Math.Clamp(dragWindowStart.X+delta.X/dpi.DpiScaleX,s.Left-targetRect.Left,s.Right-targetRect.Right); Top=Math.Clamp(dragWindowStart.Y+delta.Y/dpi.DpiScaleY,s.Top-targetRect.Top,s.Bottom-targetRect.Bottom);
+        var s=ScreenRect(); Left=Math.Clamp(dragWindowStart.X+delta.X,s.Left-targetRect.Left,s.Right-targetRect.Right); Top=Math.Clamp(dragWindowStart.Y+delta.Y,s.Top-targetRect.Top,s.Bottom-targetRect.Bottom);
     }
     void EndDrag(object sender,MouseButtonEventArgs e)
     {
-        ((UIElement)sender).ReleaseMouseCapture(); dragStart=null; e.Handled=true;
-        if(!dragging) { ChangeMode("workspace"); return; }
-        dragging=false;
+        if(dragStart==null)return;
+        var moved=dragging;
+        // Clear state before releasing capture: LostMouseCapture is synchronous.
+        dragStart=null;dragging=false;dragCapture=null;
+        ((UIElement)sender).ReleaseMouseCapture();e.Handled=true;
+        if(moved)FinishDrag();
+        else if(sender!=dragGrip)ChangeMode("workspace");
+        lastInside.Restart();
+    }
+    void CancelDrag()
+    {
+        if(dragStart==null)return;
+        var moved=dragging;var capture=dragCapture;
+        dragStart=null;dragging=false;dragCapture=null;capture?.ReleaseMouseCapture();
+        if(moved)FinishDrag();
+        lastInside.Restart();
+    }
+    void FinishDrag()
+    {
         var s=ScreenRect(); var visible=new Rect(Left+targetRect.X,Top+targetRect.Y,targetRect.Width,targetRect.Height);
         var distances=new[]{("top",Math.Abs(visible.Top-s.Top)),("bottom",Math.Abs(s.Bottom-visible.Bottom)),("left",Math.Abs(visible.Left-s.Left)),("right",Math.Abs(s.Right-visible.Right))};
         snapEdge=distances.OrderBy(x=>x.Item2).First().Item2<=60?distances.OrderBy(x=>x.Item2).First().Item1:null;
@@ -351,22 +404,25 @@ sealed partial class IslandWindow : Window
         p.Mode="free"; p.X=Left; p.Y=Top;
         // Keep the current visual anchor stable before switching to a free placement.
         var center=visible.Left+visible.Width/2; Left=center-CanvasWidth/2; Top=visible.Top-8; p.X=Left; p.Y=Top;
-        mode=""; ChangeMode("compact",false); backend.SaveSettings();
+        var displayMode=mode;mode=""; ChangeMode(displayMode,false); backend.SaveSettings();
         if(snapEdge!=null) ShowSnapPrompt();
     }
     void ShowSnapPrompt()
     {
-        var line=new StackPanel { Orientation=Orientation.Horizontal, Margin=new(10) }; line.Children.Add(Text("吸附到边缘？",11));
-        var yes=Button("吸附",()=>ResolveSnap(true)); yes.Margin=new(10,0,0,0); line.Children.Add(yes); var no=Button("自由",()=>ResolveSnap(false)); no.Margin=new(5,0,0,0); line.Children.Add(no);
+        var line=new StackPanel { Orientation=Orientation.Horizontal, Margin=new(16,0,16,0), HorizontalAlignment=HorizontalAlignment.Center, VerticalAlignment=VerticalAlignment.Center }; line.Children.Add(Text("吸附到边缘？",11));
+        var yes=Button("吸附",()=>ResolveSnap(true),44); yes.Height=28; yes.Margin=new(12,0,0,0); line.Children.Add(yes); var no=Button("自由",()=>ResolveSnap(false),44); no.Height=28; no.Margin=new(8,0,0,0); line.Children.Add(no);
         snapPrompt=new Border { Background=Brush("#15181E"), BorderBrush=Brush("#3A4250"), BorderThickness=new(1), CornerRadius=new(14), Child=line, Width=244,Height=52 };
         var bounds=ScreenRect();
-        var x=Math.Clamp(targetRect.X+targetRect.Width/2-122,Math.Max(8,bounds.Left-Left+8),Math.Min(CanvasWidth-252,bounds.Right-Left-252)); var y=targetRect.Bottom+8;
-        if(y+52>CanvasHeight) y=targetRect.Top-60;
-        Canvas.SetLeft(snapPrompt,x); Canvas.SetTop(snapPrompt,Math.Clamp(y,8,CanvasHeight-60)); canvas.Children.Add(snapPrompt);
+        var x=Math.Clamp(Left+targetRect.X+targetRect.Width/2-122,bounds.Left+8,bounds.Right-252);
+        var y=Top+targetRect.Bottom+8;
+        if(y+52>bounds.Bottom-8)y=Top+targetRect.Top-60;
+        y=Math.Clamp(y,bounds.Top+8,bounds.Bottom-60);
+        snapPromptScreenRect=new(x,y,244,52);
+        snapPopup=new Popup{Child=snapPrompt,AllowsTransparency=true,Placement=PlacementMode.AbsolutePoint,HorizontalOffset=x,VerticalOffset=y,StaysOpen=true,IsOpen=true};
     }
     void ResolveSnap(bool accept)
     {
-        if(snapPrompt!=null) canvas.Children.Remove(snapPrompt); snapPrompt=null;
+        if(snapPopup!=null){snapPopup.IsOpen=false;snapPopup.Child=null;}snapPopup=null;snapPrompt=null;
         if(accept && snapEdge!=null)
         {
             var s=ScreenRect(); var center=new Point(Left+targetRect.X+targetRect.Width/2,Top+targetRect.Y+targetRect.Height/2);
@@ -520,7 +576,7 @@ sealed partial class IslandWindow : Window
         compactTimer.Text=text; timerLabel.Text=notice!=null&&DateTime.UtcNow<noticeUntil?notice.Message:active==null?"点击查看工作列表":$"▷ {active.Title} · {text}";UpdatePet();
         foreach(var row in rows[1].Values.OfType<Border>())
             if(row.Child is Grid g) foreach(var button in g.Children.OfType<Button>()) if(button.Tag is Todo t) button.Content=(t.TimerStartedAt!=null?"Ⅱ ":"▷ ")+Todo.Duration(t.CurrentElapsed);
-        if(resized&&mode=="compact"&&backend.Settings.Placement.Mode is not ("left" or "right")){mode="";ChangeMode("compact");}
+        if(resized&&dragStart==null&&mode=="compact"&&backend.Settings.Placement.Mode is not ("left" or "right")){mode="";ChangeMode("compact");}
     }
     void Toast(string message) { statusText.Text=message; var timer=new DispatcherTimer{Interval=TimeSpan.FromSeconds(3)}; timer.Tick+=(_,_)=> { statusText.Text=""; timer.Stop(); }; timer.Start(); }
     void RebuildTray()
@@ -582,6 +638,42 @@ sealed partial class IslandWindow : Window
                 placements.Add(new{edge,visibleInsideCanvas=r.Left>=0&&r.Top>=0&&r.Right<=CanvasWidth&&r.Bottom<=CanvasHeight,visibleInsideScreen=Left+r.Left>=bounds.Left&&Top+r.Top>=bounds.Top&&Left+r.Right<=bounds.Right&&Top+r.Bottom<=bounds.Bottom});
             }
             var uiChecks=new List<object>();
+            foreach(var displayMode in new[]{"compact","hover"})
+            {
+                backend.Settings.Placement=new(){Mode="free",X=500,Y=200};mode="";ChangeMode(displayMode,false);PositionWindow();UpdateLayout();
+                var surface=displayMode=="compact"?compact:hover;
+                var hitPoint=new Point(targetRect.Left+5,targetRect.Top+targetRect.Height/2);
+                uiChecks.Add(new{name=displayMode+"-blank-area-draggable",passed=InputHitTest(hitPoint)==surface});
+            }
+            var origin=new Point(Left,Top);var mouseOrigin=PointToScreen(new Point(targetRect.X+20,targetRect.Y+20));var dragDpi=VisualTreeHelper.GetDpi(this);
+            ArmDrag(mouseOrigin);MoveDrag(mouseOrigin+new Vector(dragDpi.DpiScaleX,dragDpi.DpiScaleY));
+            uiChecks.Add(new{name="drag-threshold-preserves-click",passed=!dragging&&Left==origin.X&&Top==origin.Y});
+            ChangeMode("compact",false);uiChecks.Add(new{name="armed-drag-blocks-hover-transition",passed=mode=="hover"});
+            MoveDrag(mouseOrigin+new Vector(80*dragDpi.DpiScaleX,100*dragDpi.DpiScaleY));
+            uiChecks.Add(new{name="drag-moves-window-in-dips",passed=dragging&&Math.Abs(Left-origin.X-80)<1&&Math.Abs(Top-origin.Y-100)<1});
+            CancelDrag();uiChecks.Add(new{name="capture-loss-persists-free-position",passed=dragStart==null&&!dragging&&backend.Settings.Placement.Mode=="free"&&mode=="hover"});
+            foreach(var edge in new[]{"top","bottom","left","right"})
+            {
+                ResolveSnap(false);var bounds=ScreenRect();var r=targetRect;
+                Left=edge=="left"?bounds.Left-r.Left:edge=="right"?bounds.Right-r.Right:bounds.Left+bounds.Width/2-r.X-r.Width/2;
+                Top=edge=="top"?bounds.Top-r.Top:edge=="bottom"?bounds.Bottom-r.Bottom:bounds.Top+bounds.Height/2-r.Y-r.Height/2;
+                FinishDrag();
+                uiChecks.Add(new{name=edge+"-snap-prompt-inside-screen",passed=snapEdge==edge&&bounds.Contains(snapPromptScreenRect)&&snapPopup?.IsOpen==true});
+                if(edge=="top"&&snapPrompt!=null)
+                {
+                    await Dispatcher.InvokeAsync(()=>{},DispatcherPriority.Render);snapPrompt.UpdateLayout();
+                    var content=(StackPanel)snapPrompt.Child;var location=content.TranslatePoint(new Point(),snapPrompt);
+                    var buttons=content.Children.OfType<Button>().ToArray();
+                    uiChecks.Add(new{name="snap-prompt-balanced-layout",passed=Math.Abs(location.X+content.ActualWidth/2-snapPrompt.ActualWidth/2)<1&&Math.Abs(location.Y+content.ActualHeight/2-snapPrompt.ActualHeight/2)<1&&buttons.All(b=>b.ActualWidth==44&&b.ActualHeight==28)});
+                    var bitmap=new RenderTargetBitmap(244,52,96,96,PixelFormats.Pbgra32);bitmap.Render(snapPrompt);
+                    var png=new PngBitmapEncoder();png.Frames.Add(BitmapFrame.Create(bitmap));using var file=File.Create(Path.Combine(Diagnostics.OutputPath,"native-snap-prompt.png"));png.Save(file);
+                }
+                ResolveSnap(edge=="left");
+                uiChecks.Add(new{name=edge+"-snap-choice",passed=backend.Settings.Placement.Mode==(edge=="left"?"left":"free")&&snapPopup==null});
+                backend.Settings.Placement=new(){Mode="free",X=500,Y=200};mode="";ChangeMode("hover",false);PositionWindow();
+            }
+            ChangeMode("workspace",false);UpdateLayout();
+            uiChecks.Add(new{name="workspace-top-grip-draggable",passed=dragGrip.ActualWidth>300&&dragGrip.ActualHeight==9&&dragGrip.Background==Brushes.Transparent});
             backend.Settings.Placement.Mode="top";PositionWindow();mode="";ChangeMode("workspace",false);SwitchPage(0,false);
             var header=(Grid)workspace.Children[0];
             for(int i=0;i<9;i++)header.RaiseEvent(new MouseWheelEventArgs(Mouse.PrimaryDevice,Environment.TickCount,-120){RoutedEvent=UIElement.PreviewMouseWheelEvent});
@@ -616,7 +708,7 @@ sealed partial class IslandWindow : Window
             visualPulseUntil=DateTime.UtcNow.AddSeconds(2.4);UpdatePet();await Task.Delay(300);Capture("native-alert");
             visualPulseUntil=DateTime.MinValue;await ResourceSample("hidden-effects-on",true,"hidden");
             uiChecks.Add(new{name="hidden-stops-all-decoration-clocks",passed=atmosphere.ActiveAnimations==0&&!pet.HasActiveClocks&&!hoverPet.HasActiveClocks});
-            var diagnostic=new{version="0.12.1-native",renderTier=RenderCapability.Tier>>16,samples,resources,page,placements,uiChecks,state=backend.State};
+            var diagnostic=new{version="0.12.2-native",renderTier=RenderCapability.Tier>>16,samples,resources,page,placements,uiChecks,state=backend.State};
             Json.AtomicWrite(Path.Combine(Diagnostics.OutputPath,"native-performance.json"),diagnostic);
             Close();
         }

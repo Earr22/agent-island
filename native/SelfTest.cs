@@ -47,7 +47,7 @@ static class SelfTest
         backend.Api.Start(0);
         using var http=new HttpClient{BaseAddress=new Uri($"http://127.0.0.1:{backend.Api.Port}"),Timeout=TimeSpan.FromSeconds(5)};
         async Task<JsonNode> Post(string route,JsonNode p) { using var response=await http.PostAsync(route,new StringContent(p.ToJsonString(),Encoding.UTF8,"application/json"));return JsonNode.Parse(await response.Content.ReadAsStringAsync())!; }
-        var health=JsonNode.Parse(await http.GetStringAsync("/health"))!;Check(health.Text("version")=="0.12.1-native","api state");
+        var health=JsonNode.Parse(await http.GetStringAsync("/health"))!;Check(health.Text("version")=="0.12.2-native","api state");
         using(var crossOrigin=new HttpRequestMessage(HttpMethod.Post,"/v1/events"))
         {
             crossOrigin.Headers.Add("Origin","https://example.com");crossOrigin.Content=new StringContent("{}",Encoding.UTF8,"application/json");

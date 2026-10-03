@@ -38,6 +38,19 @@ jobs:
           foreach ($field in @('desktopCaptured', 'sessionMonitoring', 'clipboardRead', 'windowsNotificationsRead', 'httpListenerStarted')) {
             if ($report.$field) { throw "Showcase isolation failed: $field" }
           }
+      - name: Isolated drag and edge-snap UI regression
+        shell: pwsh
+        run: |
+          $process = Start-Process -FilePath artifacts/ci-native/AgentIsland.Native.exe -ArgumentList '--diagnose', '--output=artifacts/ci-drag-test' -PassThru -Wait -WindowStyle Hidden
+          if ($process.ExitCode -ne 0) { throw 'Drag UI regression failed.' }
+          $report = Get-Content artifacts/ci-drag-test/native-performance.json -Raw | ConvertFrom-Json
+          $required = @('compact-blank-area-draggable', 'hover-blank-area-draggable', 'drag-threshold-preserves-click', 'armed-drag-blocks-hover-transition', 'drag-moves-window-in-dips', 'capture-loss-persists-free-position', 'snap-prompt-balanced-layout', 'workspace-top-grip-draggable')
+          foreach ($name in $required) {
+            if (-not ($report.uiChecks | Where-Object { $_.name -eq $name -and $_.passed })) { throw "Missing or failed UI check: $name" }
+          }
+          if (@($report.uiChecks).Count -lt 28 -or @($report.uiChecks | Where-Object { -not $_.passed }).Count) { throw 'UI regression checks failed.' }
+          if (@($report.placements).Count -ne 4 -or @($report.placements | Where-Object { -not $_.visibleInsideCanvas -or -not $_.visibleInsideScreen }).Count) { throw 'Edge placement checks failed.' }
+          Write-Output "UI checks passed: $(@($report.uiChecks).Count)"
   legacy:
     runs-on: windows-latest
     steps:

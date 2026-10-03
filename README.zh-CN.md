@@ -14,7 +14,7 @@
 
 ## 三步开始使用
 
-1. **[下载 Windows 完整运行包](https://github.com/Earr22/agent-island/releases/download/v0.12.1/Agent-Island-Native-0.12.1-win-x64-self-contained.zip)**，同时下载 [SHA-256 校验文件](https://github.com/Earr22/agent-island/releases/download/v0.12.1/Agent-Island-Native-0.12.1-win-x64-self-contained.zip.sha256)。推荐这个版本，已包含所需 .NET 桌面运行时。
+1. **[下载 Windows 完整运行包](https://github.com/Earr22/agent-island/releases/download/v0.12.2/Agent-Island-Native-0.12.2-win-x64-self-contained.zip)**，同时下载 [SHA-256 校验文件](https://github.com/Earr22/agent-island/releases/download/v0.12.2/Agent-Island-Native-0.12.2-win-x64-self-contained.zip.sha256)。推荐这个版本，已包含所需 .NET 桌面运行时。
 2. 核对校验值，将 ZIP **完整解压**到可写文件夹。不要只移动 EXE；同目录的 DLL、运行时、托盘图标和通知脚本都需要保留。
 3. 运行 `AgentIsland.Native.exe`，选择是否启用剪贴板历史。悬停展开小岛，点击进入工作区。
 
@@ -22,7 +22,7 @@
 
 **安全提示：**当前构建未进行代码签名，Windows SmartScreen 可能提示“未知发布者”。请先核对 SHA-256；也可以[从源码构建](#从源码运行)。
 
-如果已经安装 .NET 8 Desktop Runtime（x64），可选[小体积运行包](https://github.com/Earr22/agent-island/releases/download/v0.12.1/Agent-Island-Native-0.12.1-win-x64-framework-dependent.zip)。所有运行包与校验文件见 [Releases](https://github.com/Earr22/agent-island/releases/latest)。
+如果已经安装 .NET 8 Desktop Runtime（x64），可选[小体积运行包](https://github.com/Earr22/agent-island/releases/download/v0.12.2/Agent-Island-Native-0.12.2-win-x64-framework-dependent.zip)。所有运行包与校验文件见 [Releases](https://github.com/Earr22/agent-island/releases/latest)。
 
 ## 实际用起来是什么样
 
@@ -48,6 +48,7 @@ Codex 生命周期记录用于区分“正在工作”和“进程开着但空�
 
 - 工作、待办、剪贴板三页集中展示；待办支持完成状态和单任务计时器。
 - 顶部、底部、左右侧和自由位置，支持靠边吸附与自动隐藏。
+- 胶囊与悬停态任意位置都能拖动，包括空白处；展开面板使用顶部细横条。移动不强制折叠，吸附确认框不会超出屏幕。
 - 可选剪贴板历史，仅在内存保留最近 30 条文字或图片；Windows 通知捕获默认关闭。
 - 像素伙伴区分工作、休息和待处理状态；隐藏后停止装饰动画。
 - 提供 Codex 生命周期 Hook、Claude Code Hook、OpenCode 示例插件与通用本地 REST API。

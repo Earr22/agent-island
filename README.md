@@ -14,7 +14,7 @@ Native WPF/.NET 8 · Windows 10/11 x64 · Portable · MIT · No telemetry
 
 ## Try it in three steps
 
-1. **[Download the complete Windows ZIP](https://github.com/Earr22/agent-island/releases/download/v0.12.1/Agent-Island-Native-0.12.1-win-x64-self-contained.zip)** and its [SHA-256 checksum](https://github.com/Earr22/agent-island/releases/download/v0.12.1/Agent-Island-Native-0.12.1-win-x64-self-contained.zip.sha256). This is the recommended package; the .NET desktop runtime is included.
+1. **[Download the complete Windows ZIP](https://github.com/Earr22/agent-island/releases/download/v0.12.2/Agent-Island-Native-0.12.2-win-x64-self-contained.zip)** and its [SHA-256 checksum](https://github.com/Earr22/agent-island/releases/download/v0.12.2/Agent-Island-Native-0.12.2-win-x64-self-contained.zip.sha256). This is the recommended package; the .NET desktop runtime is included.
 2. Verify the checksum and extract the **whole ZIP** into a writable folder. Keep the DLLs, runtime files, tray icon, and notification helper alongside the executable.
 3. Run `AgentIsland.Native.exe`. Choose whether to enable clipboard history, then hover over the island to expand it and click to open the workspace.
 
@@ -22,7 +22,7 @@ No installer or administrator access is required. Codex Desktop monitoring works
 
 **Safety:** release builds are not code-signed, so Windows SmartScreen may show an “Unknown publisher” warning. Verify the checksum before running; you can also [build from source](#run-from-source).
 
-Already have the .NET 8 Desktop Runtime (x64)? The [smaller framework-dependent ZIP](https://github.com/Earr22/agent-island/releases/download/v0.12.1/Agent-Island-Native-0.12.1-win-x64-framework-dependent.zip) and both checksums are available in [Releases](https://github.com/Earr22/agent-island/releases/latest).
+Already have the .NET 8 Desktop Runtime (x64)? The [smaller framework-dependent ZIP](https://github.com/Earr22/agent-island/releases/download/v0.12.2/Agent-Island-Native-0.12.2-win-x64-framework-dependent.zip) and both checksums are available in [Releases](https://github.com/Earr22/agent-island/releases/latest).
 
 ## What it looks like in use
 
@@ -48,6 +48,7 @@ With the Claude Code permission hook configured, choose Allow or Deny in the pan
 
 - Work, Todos, and Clipboard pages in one compact workspace; todos include completion and a single-task timer.
 - Top, bottom, left, right, or free placement, with edge snapping and auto-hide.
+- Drag anywhere on the compact or hover island, including blank areas. In the workspace, use the slim top grip; moving the island keeps the panel open, and edge-snap confirmation stays within the screen.
 - Optional memory-only clipboard history, up to 30 text or image items; optional Windows notification capture, off by default.
 - Pixel companion states for working, resting, and attention; decorative animations stop when hidden.
 - Codex lifecycle hooks, a Claude Code hook, an OpenCode example plugin, and a generic local REST API.

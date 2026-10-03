@@ -108,7 +108,7 @@ sealed class Backend : IDisposable
     public Usage[] Usage { get { lock (gate) return usage == null ? Array.Empty<Usage>() : new[] { usage }; } }
     public IslandEvent[] History { get { lock (gate) return history.ToArray(); } }
     public Decision[] Pending { get { lock (gate) return decisions.Values.Where(d => d.Status == "pending").ToArray(); } }
-    public object State => new { name = "Agent Island", version = "0.12.1-native", listening = Api.Port!=0, address = $"http://127.0.0.1:{Api.Port}", activeAgents = Agents, agentUsage = Usage, windowsNotifications = new { access = NotificationAccess }, pendingDecisions = Pending, latestEvent = History.FirstOrDefault() };
+    public object State => new { name = "Agent Island", version = "0.12.2-native", listening = Api.Port!=0, address = $"http://127.0.0.1:{Api.Port}", activeAgents = Agents, agentUsage = Usage, windowsNotifications = new { access = NotificationAccess }, pendingDecisions = Pending, latestEvent = History.FirstOrDefault() };
     public void SaveSettings() => Json.AtomicWrite(Path.Combine(DataPath, "settings.json"), Settings);
     public static string[] ProcessHints(string source) => Definitions.FirstOrDefault(d => d.id == source).focus ?? Array.Empty<string>();
     static string[] AppHints(string app) => app switch
